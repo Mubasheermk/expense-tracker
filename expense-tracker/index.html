@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Spendly · Expense Tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg1:#6a11cb; --bg2:#2575fc;
+    --card:#ffffffee; --text:#1f2340; --muted:#6b7090;
+    --pink:#ff4d8d; --orange:#ff9f43; --green:#1dd1a1; --blue:#2e86de; --purple:#8854d0; --yellow:#feca57;
+    --radius:18px; --shadow:0 10px 30px rgba(20,10,60,.18);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    font-family:'Poppins',system-ui,sans-serif;color:var(--text);min-height:100vh;
+    background:linear-gradient(135deg,var(--bg1) 0%,var(--bg2) 50%,#00c9a7 100%);
+    background-attachment:fixed;padding:24px 16px 48px;
+  }
+  .wrap{max-width:1200px;margin:0 auto}
+  header{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;color:#fff;margin-bottom:22px}
+  header h1{font-size:1.9rem;font-weight:700;letter-spacing:.5px}
+  header h1 span{background:linear-gradient(90deg,#feca57,#ff6b6b);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .status{font-size:.8rem;background:rgba(255,255,255,.18);padding:6px 12px;border-radius:999px;display:flex;align-items:center;gap:6px}
+  .dot{width:9px;height:9px;border-radius:50%;background:#feca57}
+  .dot.ok{background:#1dd1a1}.dot.err{background:#ff4d4d}
+
+  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:20px}
+  .stat{border-radius:var(--radius);padding:18px 20px;color:#fff;box-shadow:var(--shadow);position:relative;overflow:hidden}
+  .stat::after{content:"";position:absolute;right:-30px;top:-30px;width:110px;height:110px;border-radius:50%;background:rgba(255,255,255,.15)}
+  .stat .label{font-size:.85rem;opacity:.9}
+  .stat .value{font-size:1.7rem;font-weight:700;margin-top:4px}
+  .stat .sub{font-size:.75rem;opacity:.85;margin-top:2px}
+  .s1{background:linear-gradient(135deg,#ff6b6b,#ff4d8d)}
+  .s2{background:linear-gradient(135deg,#ff9f43,#feca57)}
+  .s3{background:linear-gradient(135deg,#1dd1a1,#10ac84)}
+  .s4{background:linear-gradient(135deg,#8854d0,#2e86de)}
+
+  .grid{display:grid;grid-template-columns:360px 1fr;gap:20px}
+  @media(max-width:900px){.grid{grid-template-columns:1fr}}
+  .card{background:var(--card);backdrop-filter:blur(8px);border-radius:var(--radius);padding:20px;box-shadow:var(--shadow)}
+  .card h2{font-size:1.1rem;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+
+  form .row{display:flex;flex-direction:column;gap:6px;margin-bottom:12px}
+  label{font-size:.8rem;font-weight:500;color:var(--muted)}
+  input,select{font:inherit;padding:10px 12px;border-radius:12px;border:2px solid #e6e8f5;background:#fff;color:var(--text);outline:none;transition:.2s;width:100%}
+  input:focus,select:focus{border-color:var(--purple);box-shadow:0 0 0 3px rgba(136,84,208,.15)}
+  .two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .btn{font:inherit;font-weight:600;border:none;border-radius:12px;padding:11px 16px;cursor:pointer;color:#fff;transition:transform .15s,box-shadow .15s}
+  .btn:hover{transform:translateY(-1px);box-shadow:0 6px 16px rgba(0,0,0,.15)}
+  .btn-primary{background:linear-gradient(90deg,#8854d0,#ff4d8d);width:100%}
+  .btn-ghost{background:#eef0fb;color:var(--text)}
+  .actions{display:flex;gap:10px}
+  .actions .btn-ghost{flex:0 0 auto}
+
+  .cats{display:flex;flex-wrap:wrap;gap:6px}
+  .chip{font-size:.78rem;padding:6px 10px;border-radius:999px;border:2px solid transparent;cursor:pointer;background:#f2f3fb;user-select:none;transition:.15s}
+  .chip.active{color:#fff}
+
+  .tabs{display:inline-flex;background:#eef0fb;border-radius:14px;padding:4px;gap:4px;flex-wrap:wrap}
+  .tab{font:inherit;font-size:.85rem;font-weight:600;border:none;background:transparent;padding:8px 16px;border-radius:10px;cursor:pointer;color:var(--muted)}
+  .tab.active{background:linear-gradient(90deg,#2e86de,#8854d0);color:#fff;box-shadow:0 4px 12px rgba(46,134,222,.35)}
+  .chart-head{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:12px}
+  .nav{display:flex;align-items:center;gap:8px;font-size:.85rem;font-weight:600}
+  .nav button{font:inherit;border:none;background:#eef0fb;width:32px;height:32px;border-radius:10px;cursor:pointer;font-size:1rem}
+  .charts{display:grid;grid-template-columns:1.6fr 1fr;gap:18px}
+  @media(max-width:700px){.charts{grid-template-columns:1fr}}
+  .chart-box{position:relative;height:300px}
+  .period-total{font-size:.85rem;color:var(--muted);margin-top:8px}
+  .period-total b{color:var(--text)}
+
+  .list-head{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:12px}
+  .list-head input,.list-head select{width:auto;padding:8px 10px;font-size:.85rem}
+  .filters{display:flex;gap:8px;flex-wrap:wrap}
+  .list{max-height:420px;overflow:auto;display:flex;flex-direction:column;gap:8px;padding-right:4px}
+  .item{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:14px;background:#fff;border-left:6px solid #ccc;box-shadow:0 2px 8px rgba(0,0,0,.05)}
+  .item .ic{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;font-size:1.2rem;flex:0 0 auto}
+  .item .info{flex:1;min-width:0}
+  .item .title{font-weight:600;font-size:.92rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .item .meta{font-size:.75rem;color:var(--muted)}
+  .item .amt{font-weight:700;font-size:1rem}
+  .item .ops{display:flex;gap:4px}
+  .item .ops button{border:none;background:#f2f3fb;border-radius:8px;width:30px;height:30px;cursor:pointer}
+  .item .ops button:hover{background:#e3e6f7}
+  .empty{text-align:center;color:var(--muted);padding:30px 0;font-size:.9rem}
+  .mt{margin-top:20px}
+
+  .toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(100px);background:#1f2340;color:#fff;padding:12px 20px;border-radius:12px;font-size:.88rem;transition:.3s;z-index:50;box-shadow:var(--shadow)}
+  .toast.show{transform:translateX(-50%) translateY(0)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>💸 <span>Spendly</span> Expense Tracker</h1>
+    <div class="status"><span class="dot" id="dbDot"></span><span id="dbStatus">Connecting to Firebase…</span></div>
+  </header>
+
+  <!-- Summary cards -->
+  <section class="stats">
+    <div class="stat s1"><div class="label">Today</div><div class="value" id="stToday">$0.00</div><div class="sub" id="stTodayN">0 expenses</div></div>
+    <div class="stat s2"><div class="label">This Week</div><div class="value" id="stWeek">$0.00</div><div class="sub" id="stWeekN">0 expenses</div></div>
+    <div class="stat s3"><div class="label">This Month</div><div class="value" id="stMonth">$0.00</div><div class="sub" id="stMonthN">0 expenses</div></div>
+    <div class="stat s4"><div class="label">This Year</div><div class="value" id="stYear">$0.00</div><div class="sub" id="stYearN">0 expenses</div></div>
+  </section>
+
+  <div class="grid">
+    <!-- Form -->
+    <div class="card">
+      <h2 id="formTitle">➕ Add Expense</h2>
+      <form id="expForm" autocomplete="off">
+        <div class="row">
+          <label for="fTitle">Description</label>
+          <input id="fTitle" placeholder="e.g. Lunch with team" required maxlength="80" />
+        </div>
+        <div class="two">
+          <div class="row">
+            <label for="fAmount">Amount ($)</label>
+            <input id="fAmount" type="number" step="0.01" min="0.01" placeholder="0.00" required />
+          </div>
+          <div class="row">
+            <label for="fDate">Date</label>
+            <input id="fDate" type="date" required />
+          </div>
+        </div>
+        <div class="row">
+          <label>Category</label>
+          <div class="cats" id="catChips"></div>
+        </div>
+        <div class="row">
+          <label for="fPay">Payment method</label>
+          <select id="fPay">
+            <option>Card</option><option>Cash</option><option>Bank Transfer</option><option>Mobile Pay</option><option>Other</option>
+          </select>
+        </div>
+        <div class="actions">
+          <button class="btn btn-primary" type="submit" id="submitBtn">Add Expense</button>
+          <button class="btn btn-ghost" type="button" id="cancelEdit" hidden>Cancel</button>
+        </div>
+      </form>
+    </div>
+
+    <!-- Charts -->
+    <div class="card">
+      <div class="chart-head">
+        <h2 style="margin:0">📊 Spending Charts</h2>
+        <div class="tabs" id="tabs">
+          <button class="tab active" data-p="day">Day</button>
+          <button class="tab" data-p="week">Week</button>
+          <button class="tab" data-p="month">Month</button>
+          <button class="tab" data-p="year">Year</button>
+        </div>
+      </div>
+      <div class="chart-head">
+        <div class="nav">
+          <button id="prev" aria-label="Previous">‹</button>
+          <span id="rangeLabel">—</span>
+          <button id="next" aria-label="Next">›</button>
+          <button id="todayBtn" style="width:auto;padding:0 10px;font-size:.78rem">Now</button>
+        </div>
+      </div>
+      <div class="charts">
+        <div class="chart-box"><canvas id="barChart"></canvas></div>
+        <div class="chart-box"><canvas id="pieChart"></canvas></div>
+      </div>
+      <div class="period-total">Total for this period: <b id="periodTotal">$0.00</b> · Avg per <span id="avgUnit">hour</span>: <b id="periodAvg">$0.00</b></div>
+    </div>
+  </div>
+
+  <!-- List -->
+  <div class="card mt">
+    <div class="list-head">
+      <h2 style="margin:0">🧾 Recent Expenses</h2>
+      <div class="filters">
+        <input id="search" placeholder="🔍 Search…" />
+        <select id="catFilter"><option value="">All categories</option></select>
+      </div>
+    </div>
+    <div class="list" id="list"><div class="empty">Loading…</div></div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<!-- Chart.js -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<!-- Firebase compat SDK -->
+<script src="https://www.gstatic.com/firebasejs/13.2.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/13.2.0/firebase-firestore-compat.js"></script>
+
+<script>
+/* ---------------- Firebase ---------------- */
+const firebaseConfig = {
+  apiKey: "AIzaSyDwTNP04aAS1HZ2B7JOn_9ullSvd1fqfbk",
+  authDomain: "expense-tracker-ff67b.firebaseapp.com",
+  projectId: "expense-tracker-ff67b",
+  storageBucket: "expense-tracker-ff67b.firebasestorage.app",
+  messagingSenderId: "680384452888",
+  appId: "1:680384452888:web:de60cec077929ec5dee66d"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+const expensesRef = db.collection("expenses");
+
+/* ---------------- Config ---------------- */
+const CATEGORIES = [
+  { name:"Food",          icon:"🍔", color:"#ff6b6b" },
+  { name:"Transport",     icon:"🚗", color:"#2e86de" },
+  { name:"Shopping",      icon:"🛍️", color:"#ff4d8d" },
+  { name:"Bills",         icon:"💡", color:"#feca57" },
+  { name:"Entertainment", icon:"🎬", color:"#8854d0" },
+  { name:"Health",        icon:"💊", color:"#1dd1a1" },
+  { name:"Travel",        icon:"✈️", color:"#00c9a7" },
+  { name:"Education",     icon:"📚", color:"#ff9f43" },
+  { name:"Other",         icon:"📦", color:"#778ca3" }
+];
+const catMap = Object.fromEntries(CATEGORIES.map(c => [c.name, c]));
+const fmt = n => new Intl.NumberFormat("en-US",{style:"currency",currency:"USD"}).format(n || 0);
+
+/* ---------------- State ---------------- */
+let expenses = [];
+let period = "day";
+let anchor = new Date();       // reference date for the chart period
+let selectedCat = "Food";
+let editingId = null;
+let barChart, pieChart;
+
+/* ---------------- Date helpers ---------------- */
+const pad = n => String(n).padStart(2,"0");
+const toKey = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+const parseKey = s => { const [y,m,d] = s.split("-").map(Number); return new Date(y, m-1, d); };
+const startOfDay = d => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+const startOfWeek = d => { const s = startOfDay(d); const diff = (s.getDay()+6)%7; s.setDate(s.getDate()-diff); return s; }; // Monday
+const addDays = (d,n) => { const x = new Date(d); x.setDate(x.getDate()+n); return x; };
+const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const DOW = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+
+function periodRange(p, a){
+  if(p==="day"){ const s=startOfDay(a); return [s, addDays(s,1)]; }
+  if(p==="week"){ const s=startOfWeek(a); return [s, addDays(s,7)]; }
+  if(p==="month"){ return [new Date(a.getFullYear(),a.getMonth(),1), new Date(a.getFullYear(),a.getMonth()+1,1)]; }
+  return [new Date(a.getFullYear(),0,1), new Date(a.getFullYear()+1,0,1)];
+}
+function inRange(e,[s,t]){ const d = e._date; return d>=s && d<t; }
+function sum(arr){ return arr.reduce((a,e)=>a+e.amount,0); }
+
+/* ---------------- UI setup ---------------- */
+const $ = id => document.getElementById(id);
+function renderChips(){
+  $("catChips").innerHTML = CATEGORIES.map(c =>
+    `<span class="chip ${c.name===selectedCat?"active":""}" data-c="${c.name}"
+      style="${c.name===selectedCat?`background:${c.color};border-color:${c.color}`:`border-color:${c.color}33`}">${c.icon} ${c.name}</span>`
+  ).join("");
+}
+$("catChips").addEventListener("click", e => {
+  const chip = e.target.closest(".chip"); if(!chip) return;
+  selectedCat = chip.dataset.c; renderChips();
+});
+$("catFilter").innerHTML += CATEGORIES.map(c=>`<option>${c.name}</option>`).join("");
+$("fDate").value = toKey(new Date());
+renderChips();
+
+function toast(msg){ const t=$("toast"); t.textContent=msg; t.classList.add("show"); clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove("show"),2200); }
+
+/* ---------------- Firestore: live sync ---------------- */
+expensesRef.orderBy("date","desc").onSnapshot(snap => {
+  expenses = snap.docs.map(d => {
+    const x = d.data();
+    return { id:d.id, ...x, amount:Number(x.amount)||0, _date:parseKey(x.date) };
+  });
+  $("dbDot").className = "dot ok"; $("dbStatus").textContent = `Synced · ${expenses.length} records`;
+  renderAll();
+}, err => {
+  console.error(err);
+  $("dbDot").className = "dot err"; $("dbStatus").textContent = "Firebase error — check Firestore rules";
+  $("list").innerHTML = `<div class="empty">⚠️ Could not load data: ${err.message}</div>`;
+});
+
+/* ---------------- Add / Edit / Delete ---------------- */
+$("expForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  const data = {
+    title: $("fTitle").value.trim(),
+    amount: Math.round(parseFloat($("fAmount").value)*100)/100,
+    date: $("fDate").value,
+    category: selectedCat,
+    payment: $("fPay").value
+  };
+  if(!data.title || !(data.amount>0) || !data.date) return toast("Please fill all fields");
+  $("submitBtn").disabled = true;
+  try{
+    if(editingId){
+      await expensesRef.doc(editingId).update({ ...data, updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
+      toast("✏️ Expense updated");
+    }else{
+      await expensesRef.add({ ...data, createdAt: firebase.firestore.FieldValue.serverTimestamp() });
+      toast("✅ Expense added");
+    }
+    resetForm();
+  }catch(err){ console.error(err); toast("Error: "+err.message); }
+  $("submitBtn").disabled = false;
+});
+
+function resetForm(){
+  editingId = null;
+  $("expForm").reset(); $("fDate").value = toKey(new Date());
+  $("formTitle").textContent = "➕ Add Expense"; $("submitBtn").textContent = "Add Expense";
+  $("cancelEdit").hidden = true;
+}
+$("cancelEdit").addEventListener("click", resetForm);
+
+$("list").addEventListener("click", async e => {
+  const btn = e.target.closest("button"); if(!btn) return;
+  const id = btn.dataset.id; const exp = expenses.find(x=>x.id===id); if(!exp) return;
+  if(btn.dataset.act==="edit"){
+    editingId = id;
+    $("fTitle").value = exp.title; $("fAmount").value = exp.amount; $("fDate").value = exp.date;
+    $("fPay").value = exp.payment || "Card"; selectedCat = exp.category in catMap ? exp.category : "Other"; renderChips();
+    $("formTitle").textContent = "✏️ Edit Expense"; $("submitBtn").textContent = "Save Changes";
+    $("cancelEdit").hidden = false; window.scrollTo({top:0,behavior:"smooth"});
+  }else if(btn.dataset.act==="del"){
+    if(!confirm(`Delete "${exp.title}"?`)) return;
+    try{ await expensesRef.doc(id).delete(); toast("🗑️ Expense deleted"); if(editingId===id) resetForm(); }
+    catch(err){ toast("Error: "+err.message); }
+  }
+});
+
+/* ---------------- Rendering ---------------- */
+function renderAll(){ renderStats(); renderCharts(); renderList(); }
+
+function renderStats(){
+  const now = new Date();
+  [["day","stToday","stTodayN"],["week","stWeek","stWeekN"],["month","stMonth","stMonthN"],["year","stYear","stYearN"]]
+    .forEach(([p,v,n]) => {
+      const r = periodRange(p, now); const items = expenses.filter(e=>inRange(e,r));
+      $(v).textContent = fmt(sum(items)); $(n).textContent = `${items.length} expense${items.length===1?"":"s"}`;
+    });
+}
+
+function buildBuckets(){
+  const [s,t] = periodRange(period, anchor);
+  let labels=[], keyOf, unit;
+  if(period==="day"){
+    // No time stored per expense → show the 7 days ending on the selected day for context
+    labels=[]; const days=[];
+    for(let i=6;i>=0;i--){ const d=addDays(startOfDay(anchor),-i); days.push(toKey(d)); labels.push(i===0?"Selected":`${MONTHS[d.getMonth()]} ${d.getDate()}`); }
+    const vals = days.map(k => sum(expenses.filter(e=>e.date===k)));
+    return { labels, vals, highlight:6, unit:"day", range:[s,t] };
+  }
+  if(period==="week"){ labels=DOW; keyOf=e=>(e._date.getDay()+6)%7; unit="day"; }
+  if(period==="month"){
+    const n = new Date(anchor.getFullYear(),anchor.getMonth()+1,0).getDate();
+    labels = Array.from({length:n},(_,i)=>String(i+1)); keyOf=e=>e._date.getDate()-1; unit="day";
+  }
+  if(period==="year"){ labels=MONTHS; keyOf=e=>e._date.getMonth(); unit="month"; }
+  const vals = labels.map(()=>0);
+  expenses.filter(e=>inRange(e,[s,t])).forEach(e=> vals[keyOf(e)] += e.amount);
+  return { labels, vals, highlight:-1, unit, range:[s,t] };
+}
+
+function rangeLabel(){
+  const [s,t] = periodRange(period, anchor); const e = addDays(t,-1);
+  if(period==="day") return s.toLocaleDateString("en-US",{weekday:"short",month:"short",day:"numeric",year:"numeric"});
+  if(period==="week") return `${MONTHS[s.getMonth()]} ${s.getDate()} – ${MONTHS[e.getMonth()]} ${e.getDate()}, ${e.getFullYear()}`;
+  if(period==="month") return `${MONTHS[s.getMonth()]} ${s.getFullYear()}`;
+  return String(s.getFullYear());
+}
+
+const PALETTE = ["#ff6b6b","#ff9f43","#feca57","#1dd1a1","#00c9a7","#2e86de","#8854d0","#ff4d8d"];
+function renderCharts(){
+  if(typeof Chart==="undefined") return;
+  const b = buildBuckets();
+  $("rangeLabel").textContent = rangeLabel();
+
+  const ctx = $("barChart").getContext("2d");
+  const grad = ctx.createLinearGradient(0,0,0,300);
+  grad.addColorStop(0,"#8854d0"); grad.addColorStop(1,"#ff4d8d");
+  const colors = b.labels.map((_,i)=> b.highlight===-1 ? PALETTE[i%PALETTE.length] : (i===b.highlight ? grad : "#c9cdee"));
+
+  const barCfg = {
+    type:"bar",
+    data:{ labels:b.labels, datasets:[{ label:"Spent", data:b.vals, backgroundColor:colors, borderRadius:8, maxBarThickness:42 }] },
+    options:{ responsive:true, maintainAspectRatio:false, animation:{duration:600},
+      plugins:{ legend:{display:false}, tooltip:{callbacks:{label:c=>" "+fmt(c.parsed.y)}} },
+      scales:{ y:{ beginAtZero:true, ticks:{callback:v=>"$"+v}, grid:{color:"#eef0fb"} }, x:{ grid:{display:false} } } }
+  };
+  if(barChart){ barChart.data = barCfg.data; barChart.update(); } else barChart = new Chart(ctx, barCfg);
+
+  // Category breakdown for the selected period
+  const items = expenses.filter(e=>inRange(e,b.range));
+  const byCat = {}; items.forEach(e => byCat[e.category] = (byCat[e.category]||0) + e.amount);
+  const cats = Object.keys(byCat).sort((a,c)=>byCat[c]-byCat[a]);
+  const pieData = {
+    labels: cats.length ? cats : ["No data"],
+    datasets:[{ data: cats.length ? cats.map(c=>byCat[c]) : [1],
+      backgroundColor: cats.length ? cats.map(c=>(catMap[c]||catMap.Other).color) : ["#e6e8f5"],
+      borderWidth:3, borderColor:"#fff", hoverOffset:10 }]
+  };
+  const pieCfg = { type:"doughnut", data:pieData,
+    options:{ responsive:true, maintainAspectRatio:false, cutout:"62%",
+      plugins:{ legend:{position:"bottom",labels:{boxWidth:12,usePointStyle:true,font:{size:11}}},
+        tooltip:{enabled:cats.length>0, callbacks:{label:c=>` ${c.label}: ${fmt(c.parsed)}`}} } } };
+  if(pieChart){ pieChart.data = pieData; pieChart.options.plugins.tooltip.enabled = cats.length>0; pieChart.update(); }
+  else pieChart = new Chart($("pieChart"), pieCfg);
+
+  const total = sum(items);
+  const divisor = period==="day"?1 : period==="week"?7 : period==="month"?b.labels.length : 12;
+  $("periodTotal").textContent = fmt(total);
+  $("avgUnit").textContent = period==="year" ? "month" : "day";
+  $("periodAvg").textContent = fmt(total/divisor);
+}
+
+function esc(s){ return String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+function renderList(){
+  const q = $("search").value.trim().toLowerCase(); const cf = $("catFilter").value;
+  const rows = expenses.filter(e => (!cf || e.category===cf) && (!q || (e.title||"").toLowerCase().includes(q)));
+  if(!rows.length){ $("list").innerHTML = `<div class="empty">${expenses.length?"No matching expenses":"No expenses yet — add your first one! 🎉"}</div>`; return; }
+  $("list").innerHTML = rows.map(e => {
+    const c = catMap[e.category] || catMap.Other;
+    return `<div class="item" style="border-left-color:${c.color}">
+      <div class="ic" style="background:${c.color}22">${c.icon}</div>
+      <div class="info"><div class="title">${esc(e.title)}</div>
+        <div class="meta">${esc(e.category)} · ${e._date.toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"})} · ${esc(e.payment||"")}</div></div>
+      <div class="amt" style="color:${c.color}">${fmt(e.amount)}</div>
+      <div class="ops"><button data-act="edit" data-id="${e.id}" title="Edit">✏️</button><button data-act="del" data-id="${e.id}" title="Delete">🗑️</button></div>
+    </div>`;
+  }).join("");
+}
+$("search").addEventListener("input", renderList);
+$("catFilter").addEventListener("change", renderList);
+
+/* ---------------- Period controls ---------------- */
+$("tabs").addEventListener("click", e => {
+  const t = e.target.closest(".tab"); if(!t) return;
+  document.querySelectorAll(".tab").forEach(x=>x.classList.toggle("active", x===t));
+  period = t.dataset.p; renderCharts();
+});
+function shift(dir){
+  const a = new Date(anchor);
+  if(period==="day") a.setDate(a.getDate()+dir);
+  if(period==="week") a.setDate(a.getDate()+7*dir);
+  if(period==="month") a.setMonth(a.getMonth()+dir, 1);
+  if(period==="year") a.setFullYear(a.getFullYear()+dir);
+  anchor = a; renderCharts();
+}
+$("prev").addEventListener("click", ()=>shift(-1));
+$("next").addEventListener("click", ()=>shift(1));
+$("todayBtn").addEventListener("click", ()=>{ anchor = new Date(); renderCharts(); });
+
+renderCharts();
+</script>
+</body>
+</html>
