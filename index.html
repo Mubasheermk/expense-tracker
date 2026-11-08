@@ -224,6 +224,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <!-- Firebase compat SDK -->
 <script src="https://www.gstatic.com/firebasejs/13.2.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/13.2.0/firebase-app-check-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/13.2.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/13.2.0/firebase-firestore-compat.js"></script>
 
@@ -238,6 +239,14 @@ const firebaseConfig = {
   appId: "1:680384452888:web:de60cec077929ec5dee66d"
 };
 firebase.initializeApp(firebaseConfig);
+
+// App Check (Fraud Defense / reCAPTCHA Enterprise) — must run before Firestore/Auth are used
+const RECAPTCHA_ENTERPRISE_KEY = "6LeWlhUuAAAAANbt2XgzcoTnZior0PBCTBOD0qKD";
+firebase.appCheck().activate(
+  new firebase.appCheck.ReCaptchaEnterpriseProvider(RECAPTCHA_ENTERPRISE_KEY),
+  true // auto-refresh tokens
+);
+
 const db = firebase.firestore();
 const auth = firebase.auth();
 let expensesRef = null;   // users/{uid}/expenses — set after sign-in
