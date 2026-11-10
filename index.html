@@ -73,7 +73,23 @@
 
   .list-head{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:12px}
   .list-head input,.list-head select{width:auto;padding:8px 10px;font-size:.85rem}
-  .filters{display:flex;gap:8px;flex-wrap:wrap}
+  .filters{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .export{position:relative}
+  .export-btn{display:inline-flex;align-items:center;gap:6px;font:inherit;font-size:.85rem;font-weight:600;color:#fff;border:none;cursor:pointer;
+    padding:9px 14px;border-radius:12px;background:linear-gradient(90deg,#1dd1a1,#2e86de);box-shadow:0 4px 12px rgba(46,134,222,.3)}
+  .export-btn:hover{filter:brightness(1.05)}
+  .export-btn svg{width:16px;height:16px}
+  .export-menu{position:absolute;right:0;top:calc(100% + 8px);z-index:30;width:250px;background:#fff;border-radius:14px;padding:12px;
+    box-shadow:0 12px 32px rgba(20,10,60,.22);display:flex;flex-direction:column;gap:6px}
+  .export-menu[hidden]{display:none}
+  .export-menu label{font-size:.72rem}
+  .export-menu select{width:100%!important;margin-bottom:6px}
+  .export-menu button{display:flex;align-items:center;gap:10px;font:inherit;font-size:.86rem;font-weight:500;text-align:left;
+    border:none;background:#f5f6fc;padding:9px 10px;border-radius:10px;cursor:pointer;color:var(--text)}
+  .export-menu button:hover{background:#eceffb}
+  .export-menu button:disabled{opacity:.6;cursor:wait}
+  .fi{width:22px;height:22px;border-radius:6px;color:#fff;font-size:.7rem;font-weight:700;display:grid;place-items:center}
+  @media(max-width:600px){.export-menu{right:auto;left:0}}
   .list{max-height:420px;overflow:auto;display:flex;flex-direction:column;gap:8px;padding-right:4px}
   .item{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:14px;background:#fff;border-left:6px solid #ccc;box-shadow:0 2px 8px rgba(0,0,0,.05)}
   .item .ic{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;font-size:1.2rem;flex:0 0 auto}
@@ -92,6 +108,23 @@
 
   /* Auth */
   .hdr-right{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .logout{display:inline-flex;align-items:center;gap:6px;font:inherit;font-size:.82rem;font-weight:600;color:#fff;cursor:pointer;
+    border:none;padding:8px 14px;border-radius:999px;background:linear-gradient(90deg,#ff6b6b,#ff4d8d);box-shadow:0 4px 12px rgba(255,77,141,.35);transition:.15s}
+  .logout:hover{transform:translateY(-1px);box-shadow:0 6px 16px rgba(255,77,141,.45)}
+  .logout svg{width:16px;height:16px}
+
+  /* Quick-add bar */
+  .quick{margin-bottom:20px}
+  .quick-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+  .quick-head h2{margin:0}
+  .quick-hint{font-size:.75rem;color:var(--muted)}
+  .qgrid{display:grid;grid-template-columns:2fr 1fr 1.1fr 1fr;gap:12px;align-items:end}
+  .qgrid .row{margin-bottom:0}
+  .q-bottom{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;margin-top:12px;flex-wrap:wrap}
+  .q-cats{margin:0;flex:1 1 420px}
+  .q-btn .btn-primary{width:auto;white-space:nowrap;padding:12px 28px}
+  @media(max-width:900px){.qgrid{grid-template-columns:1fr 1fr}.q-desc{grid-column:1/-1}.q-btn{width:100%}.q-btn .btn-primary{flex:1}}
+  .charts .chart-box{height:320px}
   .user{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.18);padding:4px 6px 4px 4px;border-radius:999px;font-size:.82rem}
   .user img{width:28px;height:28px;border-radius:50%;background:#fff}
   .user button{font:inherit;font-size:.75rem;font-weight:600;border:none;background:#fff;color:var(--text);padding:5px 10px;border-radius:999px;cursor:pointer}
@@ -131,9 +164,53 @@
     <h1>💸 <span>Spendly</span> Expense Tracker</h1>
     <div class="hdr-right">
       <div class="status"><span class="dot" id="dbDot"></span><span id="dbStatus">Connecting to Firebase…</span></div>
-      <div class="user"><img id="userPhoto" alt="" referrerpolicy="no-referrer" /><span id="userName"></span><button id="signOutBtn">Sign out</button></div>
+      <div class="user"><img id="userPhoto" alt="" referrerpolicy="no-referrer" /><span id="userName"></span></div>
+      <button class="logout" id="signOutBtn" title="Log out">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>
+        Logout
+      </button>
     </div>
   </header>
+
+  <!-- Quick add (top) -->
+  <div class="card quick">
+    <div class="quick-head">
+      <h2 id="formTitle">➕ Add Expense</h2>
+      <span class="quick-hint">Press Enter to add</span>
+    </div>
+    <form id="expForm" autocomplete="off">
+      <div class="qgrid">
+        <div class="row q-desc">
+          <label for="fTitle">Description</label>
+          <input id="fTitle" placeholder="e.g. Lunch with team" required maxlength="80" />
+        </div>
+        <div class="row">
+          <label for="fAmount">Amount ($)</label>
+          <input id="fAmount" type="number" step="0.01" min="0.01" placeholder="0.00" required />
+        </div>
+        <div class="row">
+          <label for="fDate">Date</label>
+          <input id="fDate" type="date" required />
+        </div>
+        <div class="row">
+          <label for="fPay">Payment</label>
+          <select id="fPay">
+            <option>Card</option><option>Cash</option><option>Bank Transfer</option><option>Mobile Pay</option><option>Other</option>
+          </select>
+        </div>
+      </div>
+      <div class="q-bottom">
+        <div class="row q-cats">
+          <label>Category</label>
+          <div class="cats" id="catChips"></div>
+        </div>
+        <div class="actions q-btn">
+          <button class="btn btn-ghost" type="button" id="cancelEdit" hidden>Cancel</button>
+          <button class="btn btn-primary" type="submit" id="submitBtn">Add Expense</button>
+        </div>
+      </div>
+    </form>
+  </div>
 
   <!-- Summary cards -->
   <section class="stats">
@@ -143,43 +220,8 @@
     <div class="stat s4"><div class="label">This Year</div><div class="value" id="stYear">$0.00</div><div class="sub" id="stYearN">0 expenses</div></div>
   </section>
 
-  <div class="grid">
-    <!-- Form -->
-    <div class="card">
-      <h2 id="formTitle">➕ Add Expense</h2>
-      <form id="expForm" autocomplete="off">
-        <div class="row">
-          <label for="fTitle">Description</label>
-          <input id="fTitle" placeholder="e.g. Lunch with team" required maxlength="80" />
-        </div>
-        <div class="two">
-          <div class="row">
-            <label for="fAmount">Amount ($)</label>
-            <input id="fAmount" type="number" step="0.01" min="0.01" placeholder="0.00" required />
-          </div>
-          <div class="row">
-            <label for="fDate">Date</label>
-            <input id="fDate" type="date" required />
-          </div>
-        </div>
-        <div class="row">
-          <label>Category</label>
-          <div class="cats" id="catChips"></div>
-        </div>
-        <div class="row">
-          <label for="fPay">Payment method</label>
-          <select id="fPay">
-            <option>Card</option><option>Cash</option><option>Bank Transfer</option><option>Mobile Pay</option><option>Other</option>
-          </select>
-        </div>
-        <div class="actions">
-          <button class="btn btn-primary" type="submit" id="submitBtn">Add Expense</button>
-          <button class="btn btn-ghost" type="button" id="cancelEdit" hidden>Cancel</button>
-        </div>
-      </form>
-    </div>
-
-    <!-- Charts -->
+  <div>
+    <!-- Charts (full width) -->
     <div class="card">
       <div class="chart-head">
         <h2 style="margin:0">📊 Spending Charts</h2>
@@ -213,6 +255,23 @@
       <div class="filters">
         <input id="search" placeholder="🔍 Search…" />
         <select id="catFilter"><option value="">All categories</option></select>
+        <div class="export">
+          <button type="button" class="export-btn" id="exportBtn" aria-haspopup="true" aria-expanded="false">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg>
+            Export
+          </button>
+          <div class="export-menu" id="exportMenu" hidden>
+            <label for="exportRange">Range</label>
+            <select id="exportRange">
+              <option value="filtered">Current list (search &amp; filter)</option>
+              <option value="period">Chart period shown above</option>
+              <option value="all">All expenses</option>
+            </select>
+            <button type="button" data-fmt="xlsx"><span class="fi" style="background:#1d6f42">X</span> Excel (.xlsx)</button>
+            <button type="button" data-fmt="csv"><span class="fi" style="background:#2e86de">C</span> CSV (.csv)</button>
+            <button type="button" data-fmt="pdf"><span class="fi" style="background:#e74c3c">P</span> PDF (.pdf)</button>
+          </div>
+        </div>
       </div>
     </div>
     <div class="list" id="list"><div class="empty">Loading…</div></div>
@@ -512,6 +571,144 @@ function renderList(){
 }
 $("search").addEventListener("input", renderList);
 $("catFilter").addEventListener("change", renderList);
+
+/* ---------------- Export (Excel / CSV / PDF) ---------------- */
+const LIBS = {
+  xlsx:     "https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js",
+  jspdf:    "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js",
+  autotable:"https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"
+};
+const loaded = {};
+function loadScript(src){
+  return loaded[src] ||= new Promise((res, rej) => {
+    const s = document.createElement("script"); s.src = src; s.onload = res;
+    s.onerror = () => { delete loaded[src]; rej(new Error("Could not load export library")); };
+    document.head.appendChild(s);
+  });
+}
+
+function exportRows(){
+  const range = $("exportRange").value;
+  let rows;
+  if(range === "all") rows = expenses.slice();
+  else if(range === "period") rows = expenses.filter(e => inRange(e, periodRange(period, anchor)));
+  else {
+    const q = $("search").value.trim().toLowerCase(); const cf = $("catFilter").value;
+    rows = expenses.filter(e => (!cf || e.category===cf) && (!q || (e.title||"").toLowerCase().includes(q)));
+  }
+  return rows.sort((a,b) => a.date < b.date ? 1 : a.date > b.date ? -1 : 0);
+}
+function rangeText(){
+  const r = $("exportRange").value;
+  if(r === "all") return "All expenses";
+  if(r === "period") return `${period[0].toUpperCase()+period.slice(1)}: ${rangeLabel()}`;
+  const parts = [];
+  if($("catFilter").value) parts.push(`Category: ${$("catFilter").value}`);
+  if($("search").value.trim()) parts.push(`Search: "${$("search").value.trim()}"`);
+  return parts.length ? parts.join(" · ") : "All expenses";
+}
+const HEAD = ["Date","Description","Category","Payment","Amount (USD)"];
+const toRow = e => [e.date, e.title || "", e.category || "", e.payment || "", Math.round(e.amount*100)/100];
+const fileBase = () => `spendly-expenses-${toKey(new Date())}`;
+
+function download(blob, name){
+  const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name;
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+// Guard against spreadsheet formula injection (cells starting with = + - @)
+const safeCell = v => typeof v === "string" && /^[=+\-@\t\r]/.test(v) ? "'" + v : v;
+
+function exportCSV(rows){
+  const esc = v => { v = String(safeCell(v)); return /[",\n\r]/.test(v) ? `"${v.replace(/"/g,'""')}"` : v; };
+  const lines = [HEAD, ...rows.map(toRow), ["","","","Total", sum(rows).toFixed(2)]].map(r => r.map(esc).join(","));
+  download(new Blob(["﻿" + lines.join("\r\n")], {type:"text/csv;charset=utf-8"}), fileBase() + ".csv");
+}
+
+async function exportXLSX(rows){
+  await loadScript(LIBS.xlsx);
+  const data = [HEAD, ...rows.map(toRow)];   // SheetJS stores these as plain text cells, never formulas
+  data.push([], ["","","","Total", Math.round(sum(rows)*100)/100]);
+  const ws = XLSX.utils.aoa_to_sheet(data);
+  ws["!cols"] = [{wch:12},{wch:36},{wch:16},{wch:16},{wch:14}];
+  for(let i = 2; i <= rows.length + 3; i++){ const c = ws["E"+i]; if(c && typeof c.v === "number") c.z = '"$"#,##0.00'; }
+  ws["!autofilter"] = { ref: `A1:E${rows.length + 1}` };
+
+  // Second sheet: totals by category
+  const byCat = {}; rows.forEach(e => byCat[e.category] = (byCat[e.category]||0) + e.amount);
+  const catData = [["Category","Count","Total (USD)"],
+    ...Object.keys(byCat).sort((a,b)=>byCat[b]-byCat[a]).map(c => [c, rows.filter(e=>e.category===c).length, Math.round(byCat[c]*100)/100])];
+  const ws2 = XLSX.utils.aoa_to_sheet(catData);
+  ws2["!cols"] = [{wch:18},{wch:8},{wch:14}];
+  for(let i = 2; i <= catData.length; i++){ const c = ws2["C"+i]; if(c) c.z = '"$"#,##0.00'; }
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Expenses");
+  XLSX.utils.book_append_sheet(wb, ws2, "By Category");
+  XLSX.writeFile(wb, fileBase() + ".xlsx");
+}
+
+async function exportPDF(rows){
+  await loadScript(LIBS.jspdf); await loadScript(LIBS.autotable);
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit:"pt", format:"letter" });
+  const W = doc.internal.pageSize.getWidth();
+  // Header band
+  doc.setFillColor(136,84,208); doc.rect(0,0,W,70,"F");
+  doc.setFillColor(255,77,141); doc.rect(W*0.6,0,W*0.4,70,"F");
+  doc.setTextColor(255); doc.setFont("helvetica","bold"); doc.setFontSize(20);
+  doc.text("Spendly · Expense Report", 40, 42);
+  doc.setFont("helvetica","normal"); doc.setFontSize(10);
+  const who = auth.currentUser ? (auth.currentUser.displayName || auth.currentUser.email || "") : "";
+  doc.text(`Generated ${new Date().toLocaleString("en-US")}${who ? "  ·  " + who : ""}`, 40, 58);
+  doc.setTextColor(40); doc.setFontSize(11);
+  doc.text(`Range: ${rangeText()}`, 40, 95);
+  doc.setFont("helvetica","bold");
+  doc.text(`Total: ${fmt(sum(rows))}   ·   ${rows.length} expense${rows.length===1?"":"s"}`, 40, 112);
+
+  doc.autoTable({
+    startY: 126,
+    head: [HEAD],
+    body: rows.map(e => { const r = toRow(e); r[4] = fmt(r[4]); return r; }),
+    foot: [["","","","Total", fmt(sum(rows))]],
+    styles: { fontSize: 9, cellPadding: 5 },
+    headStyles: { fillColor: [46,134,222], textColor: 255 },
+    footStyles: { fillColor: [238,240,251], textColor: 30, fontStyle: "bold" },
+    alternateRowStyles: { fillColor: [248,249,254] },
+    columnStyles: { 0:{cellWidth:70}, 4:{halign:"right", cellWidth:85} },
+    didParseCell: d => {
+      if(d.section === "body" && d.column.index === 2){
+        const c = catMap[d.cell.raw]; if(c){ const h = c.color.slice(1); d.cell.styles.textColor = [parseInt(h.slice(0,2),16),parseInt(h.slice(2,4),16),parseInt(h.slice(4,6),16)]; d.cell.styles.fontStyle = "bold"; }
+      }
+    },
+    didDrawPage: () => {
+      const H = doc.internal.pageSize.getHeight();
+      doc.setFontSize(8); doc.setTextColor(150);
+      doc.text(`Page ${doc.internal.getNumberOfPages()}`, W - 70, H - 20);
+    }
+  });
+  doc.save(fileBase() + ".pdf");
+}
+
+$("exportBtn").addEventListener("click", e => {
+  e.stopPropagation();
+  const m = $("exportMenu"); m.hidden = !m.hidden;
+  $("exportBtn").setAttribute("aria-expanded", String(!m.hidden));
+});
+document.addEventListener("click", e => { if(!e.target.closest(".export")) $("exportMenu").hidden = true; });
+$("exportMenu").addEventListener("click", async e => {
+  const btn = e.target.closest("button[data-fmt]"); if(!btn) return;
+  const rows = exportRows();
+  if(!rows.length) return toast("Nothing to export for this range");
+  const btns = $("exportMenu").querySelectorAll("button"); btns.forEach(b => b.disabled = true);
+  try{
+    if(btn.dataset.fmt === "csv") exportCSV(rows);
+    else if(btn.dataset.fmt === "xlsx") await exportXLSX(rows);
+    else await exportPDF(rows);
+    toast(`📥 Exported ${rows.length} expense${rows.length===1?"":"s"}`);
+    $("exportMenu").hidden = true;
+  }catch(err){ console.error(err); toast("Export failed: " + err.message); }
+  btns.forEach(b => b.disabled = false);
+});
 
 /* ---------------- Period controls ---------------- */
 $("tabs").addEventListener("click", e => {
