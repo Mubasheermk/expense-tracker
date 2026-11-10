@@ -4,6 +4,15 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Spendly · Expense Tracker</title>
+<!-- PWA -->
+<link rel="manifest" href="manifest.webmanifest" />
+<meta name="theme-color" content="#6a11cb" />
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png" />
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="Spendly" />
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -108,6 +117,50 @@
 
   /* Auth */
   .hdr-right{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .install-btn{display:inline-flex;align-items:center;gap:6px;font:inherit;font-size:.82rem;font-weight:600;color:var(--text);cursor:pointer;
+    border:none;padding:8px 14px;border-radius:999px;background:#fff;box-shadow:0 4px 12px rgba(0,0,0,.12)}
+  .install-btn svg{width:16px;height:16px}
+  .install-btn[hidden]{display:none}
+
+  /* Budgets & recurring */
+  .two-col{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px}
+  @media(max-width:900px){.two-col{grid-template-columns:1fr}}
+  .card-head{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+  .card-head h2{margin:0}
+  .sub-h{font-size:.75rem;font-weight:500;color:var(--muted)}
+  .mini-btn{font:inherit;font-size:.78rem;font-weight:600;border:none;background:#eef0fb;color:var(--text);padding:7px 12px;border-radius:10px;cursor:pointer}
+  .mini-btn:hover{background:#e3e6f7}
+  .bud{margin-bottom:12px}
+  .bud-top{display:flex;justify-content:space-between;font-size:.85rem;margin-bottom:5px;gap:8px}
+  .bud-top .nm{font-weight:600}
+  .bud-top .vals{color:var(--muted);font-size:.78rem;white-space:nowrap}
+  .bud-top .vals b{color:var(--text)}
+  .bar{height:10px;background:#eef0fb;border-radius:999px;overflow:hidden}
+  .bar > i{display:block;height:100%;border-radius:999px;transition:width .5s}
+  .bud.total .bar{height:14px}
+  .bud-note{font-size:.72rem;margin-top:3px}
+  .ok-t{color:#10ac84}.warn-t{color:#e58e26}.over-t{color:#e74c3c}
+  .rec{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:12px;background:#fff;margin-bottom:8px;box-shadow:0 2px 8px rgba(0,0,0,.05)}
+  .rec .ic{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;flex:0 0 auto}
+  .rec .info{flex:1;min-width:0}
+  .rec .t{font-weight:600;font-size:.88rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .rec .m{font-size:.72rem;color:var(--muted)}
+  .rec .a{font-weight:700;font-size:.9rem}
+  .rec.paused{opacity:.55}
+  .rec button{border:none;background:#f2f3fb;border-radius:8px;width:30px;height:30px;cursor:pointer}
+  .rec button:hover{background:#e3e6f7}
+
+  /* Modal */
+  .modal{position:fixed;inset:0;background:rgba(20,10,60,.45);display:grid;place-items:center;padding:16px;z-index:60}
+  .modal[hidden]{display:none}
+  .modal-card{background:#fff;border-radius:20px;padding:22px;width:100%;max-width:520px;max-height:90vh;overflow:auto;box-shadow:var(--shadow)}
+  .modal-note{font-size:.82rem;color:var(--muted);margin-bottom:12px}
+  .budget-inputs{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .budget-inputs .row{margin-bottom:0}
+  .budget-inputs .full{grid-column:1/-1}
+  @media(max-width:500px){.budget-inputs{grid-template-columns:1fr}}
+  .x-btn{border:none;background:#f2f3fb;width:32px;height:32px;border-radius:10px;cursor:pointer;font-size:.9rem}
+  .dot.off{background:#a4b0be}
   .logout{display:inline-flex;align-items:center;gap:6px;font:inherit;font-size:.82rem;font-weight:600;color:#fff;cursor:pointer;
     border:none;padding:8px 14px;border-radius:999px;background:linear-gradient(90deg,#ff6b6b,#ff4d8d);box-shadow:0 4px 12px rgba(255,77,141,.35);transition:.15s}
   .logout:hover{transform:translateY(-1px);box-shadow:0 6px 16px rgba(255,77,141,.45)}
@@ -118,12 +171,13 @@
   .quick-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
   .quick-head h2{margin:0}
   .quick-hint{font-size:.75rem;color:var(--muted)}
-  .qgrid{display:grid;grid-template-columns:2fr 1fr 1.1fr 1fr;gap:12px;align-items:end}
+  .qgrid{display:grid;grid-template-columns:2fr 1fr 1.1fr 1fr 1fr;gap:12px;align-items:end}
   .qgrid .row{margin-bottom:0}
   .q-bottom{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;margin-top:12px;flex-wrap:wrap}
   .q-cats{margin:0;flex:1 1 420px}
   .q-btn .btn-primary{width:auto;white-space:nowrap;padding:12px 28px}
   @media(max-width:900px){.qgrid{grid-template-columns:1fr 1fr}.q-desc{grid-column:1/-1}.q-btn{width:100%}.q-btn .btn-primary{flex:1}}
+  #repeatRow[hidden]{display:none}
   .charts .chart-box{height:320px}
   .user{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.18);padding:4px 6px 4px 4px;border-radius:999px;font-size:.82rem}
   .user img{width:28px;height:28px;border-radius:50%;background:#fff}
@@ -165,6 +219,10 @@
     <div class="hdr-right">
       <div class="status"><span class="dot" id="dbDot"></span><span id="dbStatus">Connecting to Firebase…</span></div>
       <div class="user"><img id="userPhoto" alt="" referrerpolicy="no-referrer" /><span id="userName"></span></div>
+      <button class="install-btn" id="installBtn" hidden title="Install Spendly on this device">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="2" width="12" height="20" rx="2"/><path d="M12 7v7"/><path d="M9 11l3 3 3-3"/></svg>
+        Install app
+      </button>
       <button class="logout" id="signOutBtn" title="Log out">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>
         Logout
@@ -198,6 +256,12 @@
             <option>Card</option><option>Cash</option><option>Bank Transfer</option><option>Mobile Pay</option><option>Other</option>
           </select>
         </div>
+        <div class="row" id="repeatRow">
+          <label for="fRepeat">Repeat</label>
+          <select id="fRepeat">
+            <option value="">Never</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option><option value="yearly">Yearly</option>
+          </select>
+        </div>
       </div>
       <div class="q-bottom">
         <div class="row q-cats">
@@ -219,6 +283,24 @@
     <div class="stat s3"><div class="label">This Month</div><div class="value" id="stMonth">$0.00</div><div class="sub" id="stMonthN">0 expenses</div></div>
     <div class="stat s4"><div class="label">This Year</div><div class="value" id="stYear">$0.00</div><div class="sub" id="stYearN">0 expenses</div></div>
   </section>
+
+  <!-- Budgets + Recurring -->
+  <div class="two-col">
+    <div class="card">
+      <div class="card-head">
+        <h2>🎯 Budgets <span class="sub-h" id="budgetMonth"></span></h2>
+        <button class="mini-btn" id="editBudgetsBtn" type="button">✏️ Edit budgets</button>
+      </div>
+      <div id="budgetList"><div class="empty">Loading…</div></div>
+    </div>
+    <div class="card">
+      <div class="card-head">
+        <h2>🔁 Recurring</h2>
+        <span class="sub-h">Set "Repeat" when adding an expense</span>
+      </div>
+      <div id="recurringList"><div class="empty">Loading…</div></div>
+    </div>
+  </div>
 
   <div>
     <!-- Charts (full width) -->
@@ -279,6 +361,22 @@
 </div>
 <div class="toast" id="toast"></div>
 
+<!-- Budget editor -->
+<div class="modal" id="budgetModal" hidden>
+  <form class="modal-card" id="budgetForm" autocomplete="off">
+    <div class="card-head">
+      <h2>🎯 Monthly budgets</h2>
+      <button type="button" class="x-btn" id="closeBudget" aria-label="Close">✕</button>
+    </div>
+    <p class="modal-note">Set a monthly limit for any category. Leave a field blank for no budget.</p>
+    <div class="budget-inputs" id="budgetInputs"></div>
+    <div class="actions" style="margin-top:14px">
+      <button class="btn btn-ghost" type="button" id="cancelBudget">Cancel</button>
+      <button class="btn btn-primary" type="submit">Save budgets</button>
+    </div>
+  </form>
+</div>
+
 <!-- Chart.js -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <!-- Firebase compat SDK -->
@@ -307,9 +405,17 @@ firebase.appCheck().activate(
 );
 
 const db = firebase.firestore();
+// Offline support: keep a local copy of the user's data and queue writes until back online
+try { db.enablePersistence({ synchronizeTabs: true }).catch(err => console.warn("Offline persistence unavailable:", err.code)); }
+catch(err){ console.warn("Offline persistence unavailable:", err); }
 const auth = firebase.auth();
-let expensesRef = null;   // users/{uid}/expenses — set after sign-in
-let unsubscribe = null;
+const TS = () => firebase.firestore.FieldValue.serverTimestamp();
+let expensesRef = null;   // users/{uid}/expenses
+let budgetRef = null;     // users/{uid}/settings/budgets
+let recurringRef = null;  // users/{uid}/recurring
+let unsubs = [];
+let budgets = {};         // { Food: 300, _total: 1500, ... }
+let recurring = [];
 
 /* ---------------- Config ---------------- */
 const CATEGORIES = [
@@ -388,10 +494,10 @@ $("googleBtn").addEventListener("click", async () => {
 $("signOutBtn").addEventListener("click", () => auth.signOut());
 
 auth.onAuthStateChanged(user => {
-  if(unsubscribe){ unsubscribe(); unsubscribe = null; }
-  expenses = []; resetForm();
+  unsubs.forEach(u => u()); unsubs = [];
+  expenses = []; budgets = {}; recurring = []; resetForm();
   if(!user){
-    expensesRef = null;
+    expensesRef = budgetRef = recurringRef = null;
     document.body.classList.add("signed-out");
     return;
   }
@@ -401,23 +507,186 @@ auth.onAuthStateChanged(user => {
   $("userPhoto").style.display = user.photoURL ? "" : "none";
   $("dbDot").className = "dot"; $("dbStatus").textContent = "Connecting to Firebase…";
   $("list").innerHTML = `<div class="empty">Loading…</div>`;
-  expensesRef = db.collection("users").doc(user.uid).collection("expenses");
+  const userRef = db.collection("users").doc(user.uid);
+  expensesRef  = userRef.collection("expenses");
+  budgetRef    = userRef.collection("settings").doc("budgets");
+  recurringRef = userRef.collection("recurring");
   startSync();
 });
 
 /* ---------------- Firestore: live sync ---------------- */
-function startSync(){ unsubscribe = expensesRef.orderBy("date","desc").onSnapshot(snap => {
-  expenses = snap.docs.map(d => {
-    const x = d.data();
-    return { id:d.id, ...x, amount:Number(x.amount)||0, _date:parseKey(x.date) };
-  });
+function setStatus(){
+  if(!expensesRef) return;
+  if(!navigator.onLine){ $("dbDot").className = "dot off"; $("dbStatus").textContent = `Offline · changes will sync`; return; }
   $("dbDot").className = "dot ok"; $("dbStatus").textContent = `Synced · ${expenses.length} records`;
-  renderAll();
-}, err => {
+}
+window.addEventListener("online", setStatus);
+window.addEventListener("offline", setStatus);
+
+function onSyncError(err){
   console.error(err);
   $("dbDot").className = "dot err"; $("dbStatus").textContent = "Firebase error — check Firestore rules";
   $("list").innerHTML = `<div class="empty">⚠️ Could not load data: ${err.message}</div>`;
-}); }
+}
+function startSync(){
+  unsubs.push(expensesRef.orderBy("date","desc").onSnapshot(snap => {
+    expenses = snap.docs.map(d => {
+      const x = d.data();
+      return { id:d.id, ...x, amount:Number(x.amount)||0, _date:parseKey(x.date) };
+    });
+    setStatus(); renderAll();
+  }, onSyncError));
+
+  unsubs.push(budgetRef.onSnapshot(snap => {
+    budgets = (snap.exists && snap.data().limits) || {};
+    renderBudgets();
+  }, err => { console.error(err); $("budgetList").innerHTML = `<div class="empty">⚠️ ${esc(err.message)}</div>`; }));
+
+  unsubs.push(recurringRef.onSnapshot(snap => {
+    recurring = snap.docs.map(d => ({ id:d.id, ...d.data() }));
+    renderRecurring();
+    processRecurring();
+  }, err => { console.error(err); $("recurringList").innerHTML = `<div class="empty">⚠️ ${esc(err.message)}</div>`; }));
+}
+
+/* ---------------- Recurring expenses ---------------- */
+const FREQ_LABEL = { weekly:"Weekly", monthly:"Monthly", yearly:"Yearly" };
+const daysIn = (y, m) => new Date(y, m + 1, 0).getDate();
+function advanceDate(r, key){
+  const d = parseKey(key);
+  if(r.frequency === "weekly") return toKey(addDays(d, 7));
+  const day = r.anchorDay || d.getDate();
+  if(r.frequency === "yearly"){ const y = d.getFullYear() + 1, m = d.getMonth(); return toKey(new Date(y, m, Math.min(day, daysIn(y, m)))); }
+  let y = d.getFullYear(), m = d.getMonth() + 1; if(m > 11){ m = 0; y++; }
+  return toKey(new Date(y, m, Math.min(day, daysIn(y, m))));
+}
+
+// Create any expenses that are due. Generated IDs are deterministic (rec_<rule>_<date>),
+// so running this on two devices at once can never create duplicates.
+let processing = false;
+async function processRecurring(){
+  if(processing || !recurringRef) return;
+  const today = toKey(new Date());
+  const due = recurring.filter(r => r.active !== false && r.nextDate && r.nextDate <= today);
+  if(!due.length) return;
+  processing = true;
+  let created = 0;
+  try{
+    for(const r of due){
+      const batch = db.batch(); let next = r.nextDate, n = 0;
+      while(next <= today && n < 100){
+        batch.set(expensesRef.doc(`rec_${r.id}_${next}`), {
+          title:r.title, amount:r.amount, date:next, category:r.category, payment:r.payment,
+          recurringId:r.id, createdAt:TS()
+        });
+        next = advanceDate(r, next); n++;
+      }
+      batch.update(recurringRef.doc(r.id), { nextDate:next, updatedAt:TS() });
+      r.nextDate = next;              // avoid re-processing before the snapshot arrives
+      batch.commit().catch(err => { console.error(err); toast("Recurring error: " + err.message); });
+      created += n;
+    }
+    if(created) toast(`🔁 Added ${created} recurring expense${created===1?"":"s"}`);
+  } finally { processing = false; }
+}
+
+function renderRecurring(){
+  if(!recurring.length){ $("recurringList").innerHTML = `<div class="empty">No recurring expenses yet.<br>Choose <b>Repeat → Monthly</b> when adding rent, subscriptions or bills.</div>`; return; }
+  const sorted = recurring.slice().sort((a,b) => (a.active===false) - (b.active===false) || (a.nextDate > b.nextDate ? 1 : -1));
+  const monthlyCost = recurring.filter(r => r.active !== false).reduce((s,r) => s + (r.frequency==="weekly" ? r.amount*52/12 : r.frequency==="yearly" ? r.amount/12 : r.amount), 0);
+  $("recurringList").innerHTML = sorted.map(r => {
+    const c = catMap[r.category] || catMap.Other; const paused = r.active === false;
+    const next = r.nextDate ? parseKey(r.nextDate).toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"}) : "—";
+    return `<div class="rec ${paused?"paused":""}">
+      <div class="ic" style="background:${c.color}22">${c.icon}</div>
+      <div class="info"><div class="t">${esc(r.title)}</div>
+        <div class="m">${FREQ_LABEL[r.frequency]||""} · ${paused ? "Paused" : "Next " + next}</div></div>
+      <div class="a" style="color:${c.color}">${fmt(r.amount)}</div>
+      <button data-rid="${r.id}" data-ract="toggle" title="${paused?"Resume":"Pause"}">${paused?"▶️":"⏸️"}</button>
+      <button data-rid="${r.id}" data-ract="del" title="Stop repeating">🗑️</button>
+    </div>`;
+  }).join("") + `<div class="sub-h" style="margin-top:6px">≈ <b>${fmt(monthlyCost)}</b> per month in active recurring expenses</div>`;
+}
+
+$("recurringList").addEventListener("click", async e => {
+  const b = e.target.closest("button[data-rid]"); if(!b) return;
+  const r = recurring.find(x => x.id === b.dataset.rid); if(!r) return;
+  try{
+    if(b.dataset.ract === "del"){
+      if(!confirm(`Stop repeating "${r.title}"? Expenses already added stay in your history.`)) return;
+      recurringRef.doc(r.id).delete().catch(err => toast("Error: " + err.message));
+      toast("🗑️ Recurring expense removed");
+    } else if(r.active === false){
+      // Resume without back-filling the paused period: skip forward to today or later
+      const today = toKey(new Date()); let next = r.nextDate || today;
+      while(next < today) next = advanceDate(r, next);
+      recurringRef.doc(r.id).update({ active:true, nextDate:next, updatedAt:TS() }).catch(err => toast("Error: " + err.message));
+      toast("▶️ Resumed");
+    } else {
+      recurringRef.doc(r.id).update({ active:false, updatedAt:TS() }).catch(err => toast("Error: " + err.message));
+      toast("⏸️ Paused");
+    }
+  }catch(err){ toast("Error: " + err.message); }
+});
+
+/* ---------------- Budgets ---------------- */
+function monthSpend(){
+  const r = periodRange("month", new Date()); const by = {}; let total = 0;
+  expenses.filter(e => inRange(e, r)).forEach(e => { by[e.category] = (by[e.category]||0) + e.amount; total += e.amount; });
+  return { by, total };
+}
+function budgetRow(name, icon, spent, limit, color, isTotal){
+  const pct = limit > 0 ? spent / limit * 100 : 0;
+  const cls = pct >= 100 ? "over" : pct >= 80 ? "warn" : "ok";
+  const barColor = cls === "over" ? "linear-gradient(90deg,#ff6b6b,#e74c3c)" : cls === "warn" ? "linear-gradient(90deg,#feca57,#ff9f43)" : `linear-gradient(90deg,${color}aa,${color})`;
+  const left = limit - spent;
+  const note = cls === "over" ? `${fmt(-left)} over budget` : cls === "warn" ? `${Math.round(pct)}% used · ${fmt(left)} left` : `${fmt(left)} left`;
+  return `<div class="bud ${isTotal?"total":""}">
+    <div class="bud-top"><span class="nm">${icon} ${name}</span><span class="vals"><b>${fmt(spent)}</b> of ${fmt(limit)}</span></div>
+    <div class="bar"><i style="width:${Math.min(pct,100)}%;background:${barColor}"></i></div>
+    <div class="bud-note ${cls}-t">${note}</div></div>`;
+}
+function renderBudgets(){
+  const now = new Date();
+  $("budgetMonth").textContent = `· ${MONTHS[now.getMonth()]} ${now.getFullYear()}`;
+  const keys = Object.keys(budgets).filter(k => budgets[k] > 0);
+  if(!keys.length){ $("budgetList").innerHTML = `<div class="empty">No budgets yet.<br>Click <b>Edit budgets</b> to set monthly limits.</div>`; return; }
+  const { by, total } = monthSpend();
+  let html = "";
+  if(budgets._total > 0) html += budgetRow("All spending", "💰", total, budgets._total, "#8854d0", true);
+  CATEGORIES.filter(c => budgets[c.name] > 0)
+    .sort((a,b) => (by[b.name]||0)/budgets[b.name] - (by[a.name]||0)/budgets[a.name])
+    .forEach(c => html += budgetRow(c.name, c.icon, by[c.name]||0, budgets[c.name], c.color));
+  $("budgetList").innerHTML = html;
+}
+function budgetAlert(category){ setTimeout(() => budgetAlertNow(category), 2300); }   // after the toast and local snapshot
+function budgetAlertNow(category){
+  const { by, total } = monthSpend(); const msgs = [];
+  const check = (label, spent, limit) => { if(!(limit > 0)) return; const p = spent/limit*100;
+    if(p >= 100) msgs.push(`🚨 ${label} is over budget (${Math.round(p)}%)`); else if(p >= 80) msgs.push(`⚠️ ${label} is at ${Math.round(p)}% of budget`); };
+  check(category, by[category]||0, budgets[category]);
+  check("Total", total, budgets._total);
+  if(msgs.length) toast(msgs[0]);
+}
+
+function openBudgets(){
+  const field = (key, label, extra="") => `<div class="row ${extra}"><label for="b_${key}">${label}</label>
+    <input id="b_${key}" data-key="${key}" type="number" min="0" step="1" placeholder="No budget" value="${budgets[key] > 0 ? budgets[key] : ""}" /></div>`;
+  $("budgetInputs").innerHTML = field("_total", "💰 Total monthly budget", "full") + CATEGORIES.map(c => field(c.name, `${c.icon} ${c.name}`)).join("");
+  $("budgetModal").hidden = false;
+}
+const closeBudgets = () => { $("budgetModal").hidden = true; };
+$("editBudgetsBtn").addEventListener("click", openBudgets);
+$("closeBudget").addEventListener("click", closeBudgets);
+$("cancelBudget").addEventListener("click", closeBudgets);
+$("budgetModal").addEventListener("click", e => { if(e.target.id === "budgetModal") closeBudgets(); });
+$("budgetForm").addEventListener("submit", e => {
+  e.preventDefault();
+  const limits = {};
+  $("budgetInputs").querySelectorAll("input").forEach(i => { const v = Math.round(parseFloat(i.value)*100)/100; if(v > 0) limits[i.dataset.key] = v; });
+  budgetRef.set({ limits, updatedAt:TS() }).catch(err => toast("Error: " + err.message));
+  closeBudgets(); toast("🎯 Budgets saved");
+});
 
 /* ---------------- Add / Edit / Delete ---------------- */
 $("expForm").addEventListener("submit", async e => {
@@ -430,25 +699,36 @@ $("expForm").addEventListener("submit", async e => {
     payment: $("fPay").value
   };
   if(!data.title || !(data.amount>0) || !data.date) return toast("Please fill all fields");
-  $("submitBtn").disabled = true;
+  const repeat = $("fRepeat").value;
+  // Writes apply locally right away (and sync later when offline), so don't block the UI on the server
+  const fail = err => { console.error(err); toast("Error: " + err.message); };
   try{
     if(editingId){
-      await expensesRef.doc(editingId).update({ ...data, updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
+      expensesRef.doc(editingId).update({ ...data, updatedAt: TS() }).catch(fail);
       toast("✏️ Expense updated");
+    }else if(repeat){
+      // Create the rule; processRecurring() adds this and future occurrences when they're due
+      const rule = { ...data, frequency:repeat, anchorDay:parseKey(data.date).getDate(),
+        startDate:data.date, nextDate:data.date, active:true, createdAt:TS() };
+      delete rule.date;
+      recurringRef.add(rule).catch(fail);
+      toast(data.date <= toKey(new Date())
+        ? `🔁 ${FREQ_LABEL[repeat]} expense set up`
+        : `🔁 ${FREQ_LABEL[repeat]} expense starts ${parseKey(data.date).toLocaleDateString("en-US",{month:"short",day:"numeric"})}`);
     }else{
-      await expensesRef.add({ ...data, createdAt: firebase.firestore.FieldValue.serverTimestamp() });
+      expensesRef.add({ ...data, createdAt: TS() }).catch(fail);
       toast("✅ Expense added");
     }
+    budgetAlert(data.category);
     resetForm();
-  }catch(err){ console.error(err); toast("Error: "+err.message); }
-  $("submitBtn").disabled = false;
+  }catch(err){ fail(err); }
 });
 
 function resetForm(){
   editingId = null;
   $("expForm").reset(); $("fDate").value = toKey(new Date());
   $("formTitle").textContent = "➕ Add Expense"; $("submitBtn").textContent = "Add Expense";
-  $("cancelEdit").hidden = true;
+  $("cancelEdit").hidden = true; $("repeatRow").hidden = false;
 }
 $("cancelEdit").addEventListener("click", resetForm);
 
@@ -460,16 +740,16 @@ $("list").addEventListener("click", async e => {
     $("fTitle").value = exp.title; $("fAmount").value = exp.amount; $("fDate").value = exp.date;
     $("fPay").value = exp.payment || "Card"; selectedCat = exp.category in catMap ? exp.category : "Other"; renderChips();
     $("formTitle").textContent = "✏️ Edit Expense"; $("submitBtn").textContent = "Save Changes";
-    $("cancelEdit").hidden = false; window.scrollTo({top:0,behavior:"smooth"});
+    $("cancelEdit").hidden = false; $("repeatRow").hidden = true; window.scrollTo({top:0,behavior:"smooth"});
   }else if(btn.dataset.act==="del"){
     if(!confirm(`Delete "${exp.title}"?`)) return;
-    try{ await expensesRef.doc(id).delete(); toast("🗑️ Expense deleted"); if(editingId===id) resetForm(); }
-    catch(err){ toast("Error: "+err.message); }
+    expensesRef.doc(id).delete().catch(err => toast("Error: "+err.message));
+    toast("🗑️ Expense deleted"); if(editingId===id) resetForm();
   }
 });
 
 /* ---------------- Rendering ---------------- */
-function renderAll(){ renderStats(); renderCharts(); renderList(); }
+function renderAll(){ renderStats(); renderCharts(); renderList(); renderBudgets(); }
 
 function renderStats(){
   const now = new Date();
@@ -563,7 +843,7 @@ function renderList(){
     return `<div class="item" style="border-left-color:${c.color}">
       <div class="ic" style="background:${c.color}22">${c.icon}</div>
       <div class="info"><div class="title">${esc(e.title)}</div>
-        <div class="meta">${esc(e.category)} · ${e._date.toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"})} · ${esc(e.payment||"")}</div></div>
+        <div class="meta">${esc(e.category)} · ${e._date.toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"})} · ${esc(e.payment||"")}${e.recurringId ? " · 🔁" : ""}</div></div>
       <div class="amt" style="color:${c.color}">${fmt(e.amount)}</div>
       <div class="ops"><button data-act="edit" data-id="${e.id}" title="Edit">✏️</button><button data-act="del" data-id="${e.id}" title="Delete">🗑️</button></div>
     </div>`;
@@ -729,6 +1009,28 @@ $("next").addEventListener("click", ()=>shift(1));
 $("todayBtn").addEventListener("click", ()=>{ anchor = new Date(); renderCharts(); });
 
 renderCharts();
+
+/* ---------------- Installable app (PWA) ---------------- */
+if("serviceWorker" in navigator && location.protocol === "https:"){
+  window.addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(err => console.warn("SW registration failed", err)));
+}
+const isStandalone = () => window.matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+let installPrompt = null;
+window.addEventListener("beforeinstallprompt", e => { e.preventDefault(); installPrompt = e; if(!isStandalone()) $("installBtn").hidden = false; });
+window.addEventListener("appinstalled", () => { $("installBtn").hidden = true; installPrompt = null; toast("📱 Spendly installed"); });
+if(isIOS && !isStandalone()) $("installBtn").hidden = false;   // iOS has no install prompt, so show instructions instead
+$("installBtn").addEventListener("click", async () => {
+  if(installPrompt){
+    installPrompt.prompt();
+    const { outcome } = await installPrompt.userChoice;
+    if(outcome === "accepted") $("installBtn").hidden = true;
+    installPrompt = null;
+  } else if(isIOS){
+    const t = $("toast"); t.textContent = "In Safari, tap Share ⬆️ then “Add to Home Screen”"; t.classList.add("show");
+    clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove("show"), 6000);
+  }
+});
 </script>
 </body>
 </html>
