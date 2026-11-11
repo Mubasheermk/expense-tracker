@@ -7,6 +7,12 @@
 <!-- PWA -->
 <link rel="manifest" href="manifest.webmanifest" />
 <meta name="theme-color" content="#6a11cb" />
+<script>
+  // Apply saved / system theme before the page paints (avoids a white flash)
+  (function(){ var t; try{ t = localStorage.getItem("spendly-theme"); }catch(e){}
+    if(t !== "light" && t !== "dark") t = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+    document.documentElement.setAttribute("data-theme", t); })();
+</script>
 <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png" />
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -16,16 +22,29 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
+  :root[data-theme="dark"]{
+    --bg1:#1d0838; --bg2:#0b1f4d; --bg3:#05463d;
+    --card:#191c30f2; --text:#e9eaf6; --muted:#9ba1c6;
+    --surface:#22263f; --soft:#2a2f4d; --bar-muted:#4a5180; --soft-h:#353b5f; --border:#363c60;
+    --shadow:0 10px 30px rgba(0,0,0,.45);
+    color-scheme:dark;
+  }
+  :root[data-theme="dark"] .stat{filter:saturate(.9) brightness(.92)}
+  :root[data-theme="dark"] .item,:root[data-theme="dark"] .rec{box-shadow:none}
+  html{background:var(--bg1)}
+  .theme-btn{width:36px;height:36px;border-radius:50%;border:none;cursor:pointer;font-size:1rem;background:rgba(255,255,255,.2);color:#fff;display:grid;place-items:center;transition:.15s}
+  .theme-btn:hover{background:rgba(255,255,255,.32)}
   :root{
     --bg1:#6a11cb; --bg2:#2575fc;
     --card:#ffffffee; --text:#1f2340; --muted:#6b7090;
+    --surface:#ffffff; --soft:#f0f1fa; --bar-muted:#c9cdee; --soft-h:#e3e6f7; --border:#e6e8f5; --bg3:#00c9a7;
     --pink:#ff4d8d; --orange:#ff9f43; --green:#1dd1a1; --blue:#2e86de; --purple:#8854d0; --yellow:#feca57;
     --radius:18px; --shadow:0 10px 30px rgba(20,10,60,.18);
   }
   *{box-sizing:border-box;margin:0;padding:0}
   body{
     font-family:'Poppins',system-ui,sans-serif;color:var(--text);min-height:100vh;
-    background:linear-gradient(135deg,var(--bg1) 0%,var(--bg2) 50%,#00c9a7 100%);
+    background:linear-gradient(135deg,var(--bg1) 0%,var(--bg2) 50%,var(--bg3) 100%);
     background-attachment:fixed;padding:24px 16px 48px;
   }
   .wrap{max-width:1200px;margin:0 auto}
@@ -54,26 +73,26 @@
 
   form .row{display:flex;flex-direction:column;gap:6px;margin-bottom:12px}
   label{font-size:.8rem;font-weight:500;color:var(--muted)}
-  input,select{font:inherit;padding:10px 12px;border-radius:12px;border:2px solid #e6e8f5;background:#fff;color:var(--text);outline:none;transition:.2s;width:100%}
+  input,select{font:inherit;padding:10px 12px;border-radius:12px;border:2px solid var(--border);background:var(--surface);color:var(--text);outline:none;transition:.2s;width:100%}
   input:focus,select:focus{border-color:var(--purple);box-shadow:0 0 0 3px rgba(136,84,208,.15)}
   .two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
   .btn{font:inherit;font-weight:600;border:none;border-radius:12px;padding:11px 16px;cursor:pointer;color:#fff;transition:transform .15s,box-shadow .15s}
   .btn:hover{transform:translateY(-1px);box-shadow:0 6px 16px rgba(0,0,0,.15)}
   .btn-primary{background:linear-gradient(90deg,#8854d0,#ff4d8d);width:100%}
-  .btn-ghost{background:#eef0fb;color:var(--text)}
+  .btn-ghost{background:var(--soft);color:var(--text)}
   .actions{display:flex;gap:10px}
   .actions .btn-ghost{flex:0 0 auto}
 
   .cats{display:flex;flex-wrap:wrap;gap:6px}
-  .chip{font-size:.78rem;padding:6px 10px;border-radius:999px;border:2px solid transparent;cursor:pointer;background:#f2f3fb;user-select:none;transition:.15s}
+  .chip{font-size:.78rem;padding:6px 10px;border-radius:999px;border:2px solid transparent;cursor:pointer;background:var(--soft);user-select:none;transition:.15s}
   .chip.active{color:#fff}
 
-  .tabs{display:inline-flex;background:#eef0fb;border-radius:14px;padding:4px;gap:4px;flex-wrap:wrap}
+  .tabs{display:inline-flex;background:var(--soft);border-radius:14px;padding:4px;gap:4px;flex-wrap:wrap}
   .tab{font:inherit;font-size:.85rem;font-weight:600;border:none;background:transparent;padding:8px 16px;border-radius:10px;cursor:pointer;color:var(--muted)}
   .tab.active{background:linear-gradient(90deg,#2e86de,#8854d0);color:#fff;box-shadow:0 4px 12px rgba(46,134,222,.35)}
   .chart-head{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:12px}
   .nav{display:flex;align-items:center;gap:8px;font-size:.85rem;font-weight:600}
-  .nav button{font:inherit;border:none;background:#eef0fb;width:32px;height:32px;border-radius:10px;cursor:pointer;font-size:1rem}
+  .nav button{font:inherit;border:none;background:var(--soft);width:32px;height:32px;border-radius:10px;cursor:pointer;font-size:1rem}
   .charts{display:grid;grid-template-columns:1.6fr 1fr;gap:18px}
   @media(max-width:700px){.charts{grid-template-columns:1fr}}
   .chart-box{position:relative;height:300px}
@@ -88,27 +107,27 @@
     padding:9px 14px;border-radius:12px;background:linear-gradient(90deg,#1dd1a1,#2e86de);box-shadow:0 4px 12px rgba(46,134,222,.3)}
   .export-btn:hover{filter:brightness(1.05)}
   .export-btn svg{width:16px;height:16px}
-  .export-menu{position:absolute;right:0;top:calc(100% + 8px);z-index:30;width:250px;background:#fff;border-radius:14px;padding:12px;
+  .export-menu{position:absolute;right:0;top:calc(100% + 8px);z-index:30;width:250px;background:var(--surface);border-radius:14px;padding:12px;
     box-shadow:0 12px 32px rgba(20,10,60,.22);display:flex;flex-direction:column;gap:6px}
   .export-menu[hidden]{display:none}
   .export-menu label{font-size:.72rem}
   .export-menu select{width:100%!important;margin-bottom:6px}
   .export-menu button{display:flex;align-items:center;gap:10px;font:inherit;font-size:.86rem;font-weight:500;text-align:left;
-    border:none;background:#f5f6fc;padding:9px 10px;border-radius:10px;cursor:pointer;color:var(--text)}
-  .export-menu button:hover{background:#eceffb}
+    border:none;background:var(--soft);padding:9px 10px;border-radius:10px;cursor:pointer;color:var(--text)}
+  .export-menu button:hover{background:var(--soft-h)}
   .export-menu button:disabled{opacity:.6;cursor:wait}
   .fi{width:22px;height:22px;border-radius:6px;color:#fff;font-size:.7rem;font-weight:700;display:grid;place-items:center}
   @media(max-width:600px){.export-menu{right:auto;left:0}}
   .list{max-height:420px;overflow:auto;display:flex;flex-direction:column;gap:8px;padding-right:4px}
-  .item{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:14px;background:#fff;border-left:6px solid #ccc;box-shadow:0 2px 8px rgba(0,0,0,.05)}
+  .item{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:14px;background:var(--surface);border-left:6px solid #ccc;box-shadow:0 2px 8px rgba(0,0,0,.05)}
   .item .ic{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;font-size:1.2rem;flex:0 0 auto}
   .item .info{flex:1;min-width:0}
   .item .title{font-weight:600;font-size:.92rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .item .meta{font-size:.75rem;color:var(--muted)}
   .item .amt{font-weight:700;font-size:1rem}
   .item .ops{display:flex;gap:4px}
-  .item .ops button{border:none;background:#f2f3fb;border-radius:8px;width:30px;height:30px;cursor:pointer}
-  .item .ops button:hover{background:#e3e6f7}
+  .item .ops button{border:none;background:var(--soft);border-radius:8px;width:30px;height:30px;cursor:pointer}
+  .item .ops button:hover{background:var(--soft-h)}
   .empty{text-align:center;color:var(--muted);padding:30px 0;font-size:.9rem}
   .mt{margin-top:20px}
 
@@ -118,7 +137,7 @@
   /* Auth */
   .hdr-right{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
   .install-btn{display:inline-flex;align-items:center;gap:6px;font:inherit;font-size:.82rem;font-weight:600;color:var(--text);cursor:pointer;
-    border:none;padding:8px 14px;border-radius:999px;background:#fff;box-shadow:0 4px 12px rgba(0,0,0,.12)}
+    border:none;padding:8px 14px;border-radius:999px;background:var(--surface);box-shadow:0 4px 12px rgba(0,0,0,.12)}
   .install-btn svg{width:16px;height:16px}
   .install-btn[hidden]{display:none}
 
@@ -128,38 +147,38 @@
   .card-head{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px}
   .card-head h2{margin:0}
   .sub-h{font-size:.75rem;font-weight:500;color:var(--muted)}
-  .mini-btn{font:inherit;font-size:.78rem;font-weight:600;border:none;background:#eef0fb;color:var(--text);padding:7px 12px;border-radius:10px;cursor:pointer}
-  .mini-btn:hover{background:#e3e6f7}
+  .mini-btn{font:inherit;font-size:.78rem;font-weight:600;border:none;background:var(--soft);color:var(--text);padding:7px 12px;border-radius:10px;cursor:pointer}
+  .mini-btn:hover{background:var(--soft-h)}
   .bud{margin-bottom:12px}
   .bud-top{display:flex;justify-content:space-between;font-size:.85rem;margin-bottom:5px;gap:8px}
   .bud-top .nm{font-weight:600}
   .bud-top .vals{color:var(--muted);font-size:.78rem;white-space:nowrap}
   .bud-top .vals b{color:var(--text)}
-  .bar{height:10px;background:#eef0fb;border-radius:999px;overflow:hidden}
+  .bar{height:10px;background:var(--soft);border-radius:999px;overflow:hidden}
   .bar > i{display:block;height:100%;border-radius:999px;transition:width .5s}
   .bud.total .bar{height:14px}
   .bud-note{font-size:.72rem;margin-top:3px}
   .ok-t{color:#10ac84}.warn-t{color:#e58e26}.over-t{color:#e74c3c}
-  .rec{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:12px;background:#fff;margin-bottom:8px;box-shadow:0 2px 8px rgba(0,0,0,.05)}
+  .rec{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:12px;background:var(--surface);margin-bottom:8px;box-shadow:0 2px 8px rgba(0,0,0,.05)}
   .rec .ic{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;flex:0 0 auto}
   .rec .info{flex:1;min-width:0}
   .rec .t{font-weight:600;font-size:.88rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .rec .m{font-size:.72rem;color:var(--muted)}
   .rec .a{font-weight:700;font-size:.9rem}
   .rec.paused{opacity:.55}
-  .rec button{border:none;background:#f2f3fb;border-radius:8px;width:30px;height:30px;cursor:pointer}
-  .rec button:hover{background:#e3e6f7}
+  .rec button{border:none;background:var(--soft);border-radius:8px;width:30px;height:30px;cursor:pointer}
+  .rec button:hover{background:var(--soft-h)}
 
   /* Modal */
   .modal{position:fixed;inset:0;background:rgba(20,10,60,.45);display:grid;place-items:center;padding:16px;z-index:60}
   .modal[hidden]{display:none}
-  .modal-card{background:#fff;border-radius:20px;padding:22px;width:100%;max-width:520px;max-height:90vh;overflow:auto;box-shadow:var(--shadow)}
+  .modal-card{background:var(--surface);border-radius:20px;padding:22px;width:100%;max-width:520px;max-height:90vh;overflow:auto;box-shadow:var(--shadow)}
   .modal-note{font-size:.82rem;color:var(--muted);margin-bottom:12px}
   .budget-inputs{display:grid;grid-template-columns:1fr 1fr;gap:10px}
   .budget-inputs .row{margin-bottom:0}
   .budget-inputs .full{grid-column:1/-1}
   @media(max-width:500px){.budget-inputs{grid-template-columns:1fr}}
-  .x-btn{border:none;background:#f2f3fb;width:32px;height:32px;border-radius:10px;cursor:pointer;font-size:.9rem}
+  .x-btn{border:none;background:var(--soft);width:32px;height:32px;border-radius:10px;cursor:pointer;font-size:.9rem}
   .dot.off{background:#a4b0be}
   .logout{display:inline-flex;align-items:center;gap:6px;font:inherit;font-size:.82rem;font-weight:600;color:#fff;cursor:pointer;
     border:none;padding:8px 14px;border-radius:999px;background:linear-gradient(90deg,#ff6b6b,#ff4d8d);box-shadow:0 4px 12px rgba(255,77,141,.35);transition:.15s}
@@ -180,17 +199,17 @@
   #repeatRow[hidden]{display:none}
   .charts .chart-box{height:320px}
   .user{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.18);padding:4px 6px 4px 4px;border-radius:999px;font-size:.82rem}
-  .user img{width:28px;height:28px;border-radius:50%;background:#fff}
-  .user button{font:inherit;font-size:.75rem;font-weight:600;border:none;background:#fff;color:var(--text);padding:5px 10px;border-radius:999px;cursor:pointer}
+  .user img{width:28px;height:28px;border-radius:50%;background:var(--surface)}
+  .user button{font:inherit;font-size:.75rem;font-weight:600;border:none;background:var(--surface);color:var(--text);padding:5px 10px;border-radius:999px;cursor:pointer}
   #login{position:fixed;inset:0;display:grid;place-items:center;padding:16px;z-index:40;
-    background:linear-gradient(135deg,var(--bg1) 0%,var(--bg2) 50%,#00c9a7 100%)}
-  .login-card{background:#fff;border-radius:24px;padding:36px 28px;max-width:400px;width:100%;text-align:center;box-shadow:var(--shadow)}
+    background:linear-gradient(135deg,var(--bg1) 0%,var(--bg2) 50%,var(--bg3) 100%)}
+  .login-card{background:var(--surface);border-radius:24px;padding:36px 28px;max-width:400px;width:100%;text-align:center;box-shadow:var(--shadow)}
   .login-card .logo{font-size:3rem}
   .login-card h1{font-size:1.6rem;margin:6px 0}
   .login-card h1 span{background:linear-gradient(90deg,#8854d0,#ff4d8d);-webkit-background-clip:text;background-clip:text;color:transparent}
   .login-card p{color:var(--muted);font-size:.9rem;margin-bottom:24px}
   .gbtn{display:inline-flex;align-items:center;justify-content:center;gap:10px;width:100%;font:inherit;font-weight:600;
-    border:2px solid #e6e8f5;background:#fff;color:var(--text);padding:12px 16px;border-radius:14px;cursor:pointer;transition:.2s}
+    border:2px solid var(--border);background:var(--surface);color:var(--text);padding:12px 16px;border-radius:14px;cursor:pointer;transition:.2s}
   .gbtn:hover{border-color:#8854d0;box-shadow:0 6px 16px rgba(136,84,208,.2)}
   .gbtn svg{width:20px;height:20px}
   .login-err{color:#e74c3c;font-size:.8rem;margin-top:12px;min-height:1em}
@@ -217,6 +236,7 @@
   <header>
     <h1>💸 <span>Spendly</span> Expense Tracker</h1>
     <div class="hdr-right">
+      <button class="theme-btn" id="themeBtn" type="button" title="Toggle dark mode" aria-label="Toggle dark mode">🌙</button>
       <div class="status"><span class="dot" id="dbDot"></span><span id="dbStatus">Connecting to Firebase…</span></div>
       <div class="user"><img id="userPhoto" alt="" referrerpolicy="no-referrer" /><span id="userName"></span></div>
       <button class="install-btn" id="installBtn" hidden title="Install Spendly on this device">
@@ -790,22 +810,24 @@ function rangeLabel(){
 }
 
 const PALETTE = ["#ff6b6b","#ff9f43","#feca57","#1dd1a1","#00c9a7","#2e86de","#8854d0","#ff4d8d"];
+const cssVar = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 function renderCharts(){
   if(typeof Chart==="undefined") return;
+  Chart.defaults.color = cssVar("--muted") || "#6b7090";
   const b = buildBuckets();
   $("rangeLabel").textContent = rangeLabel();
 
   const ctx = $("barChart").getContext("2d");
   const grad = ctx.createLinearGradient(0,0,0,300);
   grad.addColorStop(0,"#8854d0"); grad.addColorStop(1,"#ff4d8d");
-  const colors = b.labels.map((_,i)=> b.highlight===-1 ? PALETTE[i%PALETTE.length] : (i===b.highlight ? grad : "#c9cdee"));
+  const colors = b.labels.map((_,i)=> b.highlight===-1 ? PALETTE[i%PALETTE.length] : (i===b.highlight ? grad : cssVar("--bar-muted")));
 
   const barCfg = {
     type:"bar",
     data:{ labels:b.labels, datasets:[{ label:"Spent", data:b.vals, backgroundColor:colors, borderRadius:8, maxBarThickness:42 }] },
     options:{ responsive:true, maintainAspectRatio:false, animation:{duration:600},
       plugins:{ legend:{display:false}, tooltip:{callbacks:{label:c=>" "+fmt(c.parsed.y)}} },
-      scales:{ y:{ beginAtZero:true, ticks:{callback:v=>"$"+v}, grid:{color:"#eef0fb"} }, x:{ grid:{display:false} } } }
+      scales:{ y:{ beginAtZero:true, ticks:{callback:v=>"$"+v}, grid:{color:cssVar("--soft")} }, x:{ grid:{display:false} } } }
   };
   if(barChart){ barChart.data = barCfg.data; barChart.update(); } else barChart = new Chart(ctx, barCfg);
 
@@ -816,8 +838,8 @@ function renderCharts(){
   const pieData = {
     labels: cats.length ? cats : ["No data"],
     datasets:[{ data: cats.length ? cats.map(c=>byCat[c]) : [1],
-      backgroundColor: cats.length ? cats.map(c=>(catMap[c]||catMap.Other).color) : ["#e6e8f5"],
-      borderWidth:3, borderColor:"#fff", hoverOffset:10 }]
+      backgroundColor: cats.length ? cats.map(c=>(catMap[c]||catMap.Other).color) : [cssVar("--border")],
+      borderWidth:3, borderColor:cssVar("--surface"), hoverOffset:10 }]
   };
   const pieCfg = { type:"doughnut", data:pieData,
     options:{ responsive:true, maintainAspectRatio:false, cutout:"62%",
@@ -1009,6 +1031,26 @@ $("next").addEventListener("click", ()=>shift(1));
 $("todayBtn").addEventListener("click", ()=>{ anchor = new Date(); renderCharts(); });
 
 renderCharts();
+
+/* ---------------- Dark mode ---------------- */
+function applyTheme(t, save){
+  document.documentElement.setAttribute("data-theme", t);
+  $("themeBtn").textContent = t === "dark" ? "☀️" : "🌙";
+  $("themeBtn").title = t === "dark" ? "Switch to light mode" : "Switch to dark mode";
+  document.querySelector('meta[name="theme-color"]').setAttribute("content", t === "dark" ? "#1d0838" : "#6a11cb");
+  if(save){ try{ localStorage.setItem("spendly-theme", t); }catch(e){} }
+  // Rebuild charts so axis, grid and border colors match the theme
+  if(barChart){ barChart.destroy(); barChart = null; }
+  if(pieChart){ pieChart.destroy(); pieChart = null; }
+  renderCharts();
+}
+applyTheme(document.documentElement.getAttribute("data-theme") || "light", false);
+$("themeBtn").addEventListener("click", () => applyTheme(document.documentElement.getAttribute("data-theme") === "dark" ? "light" : "dark", true));
+// Follow the system setting until the user picks a theme themselves
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", e => {
+  let saved = null; try{ saved = localStorage.getItem("spendly-theme"); }catch(err){}
+  if(!saved) applyTheme(e.matches ? "dark" : "light", false);
+});
 
 /* ---------------- Installable app (PWA) ---------------- */
 if("serviceWorker" in navigator && location.protocol === "https:"){
