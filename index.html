@@ -197,6 +197,18 @@
   .q-btn .btn-primary{width:auto;white-space:nowrap;padding:12px 28px}
   @media(max-width:900px){.qgrid{grid-template-columns:1fr 1fr}.q-desc{grid-column:1/-1}.q-btn{width:100%}.q-btn .btn-primary{flex:1}}
   #repeatRow[hidden]{display:none}
+  .chip-add{font:inherit;font-size:.78rem;border:2px dashed var(--border);background:transparent;color:var(--muted)}
+  .chip-add:hover{border-color:#8854d0;color:#8854d0}
+  .cat-add{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap}
+  .cat-add .row{margin-bottom:0}
+  .cat-add input{height:46px}
+  .icon-in{width:64px!important;text-align:center;font-size:1.2rem}
+  .color-in{width:56px!important;padding:4px!important;cursor:pointer}
+  .cat-add .btn{height:46px}
+  .quick-icons{display:flex;flex-wrap:wrap;gap:4px;margin-top:10px}
+  .quick-icons button{border:none;background:var(--soft);border-radius:8px;width:34px;height:34px;cursor:pointer;font-size:1.05rem}
+  .quick-icons button:hover{background:var(--soft-h)}
+  .swatch{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:middle}
   .q-note{margin:12px 0 0}
   .tags{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}
   .tag{font:inherit;font-size:.68rem;font-weight:600;border:none;cursor:pointer;padding:2px 8px;border-radius:999px;background:rgba(136,84,208,.14);color:#8854d0}
@@ -391,6 +403,28 @@
 </div>
 <div class="toast" id="toast"></div>
 
+<!-- Category manager -->
+<div class="modal" id="catModal" hidden>
+  <div class="modal-card">
+    <div class="card-head">
+      <h2>🏷️ Your categories <span class="sub-h" id="catCount"></span></h2>
+      <button type="button" class="x-btn" id="closeCats" aria-label="Close">✕</button>
+    </div>
+    <p class="modal-note">Add categories for anything the defaults don't cover, like Pets, Kids or Home. They appear in the form, filters, charts and budgets.</p>
+    <form id="catForm" autocomplete="off">
+      <div class="cat-add">
+        <div class="row"><label for="catIcon">Icon</label><input id="catIcon" maxlength="4" class="icon-in" /></div>
+        <div class="row" style="flex:1"><label for="catName">Name</label><input id="catName" maxlength="20" placeholder="e.g. Pets" required /></div>
+        <div class="row"><label for="catColor">Color</label><input id="catColor" type="color" class="color-in" /></div>
+        <button class="btn btn-primary" type="submit" style="width:auto">Add</button>
+      </div>
+      <div class="quick-icons" id="quickIcons"></div>
+    </form>
+    <div id="catCustomList" style="margin-top:12px"></div>
+    <div class="actions" style="margin-top:8px;justify-content:flex-end"><button class="btn btn-ghost" type="button" id="doneCats">Done</button></div>
+  </div>
+</div>
+
 <!-- Budget editor -->
 <div class="modal" id="budgetModal" hidden>
   <form class="modal-card" id="budgetForm" autocomplete="off">
@@ -442,13 +476,14 @@ const auth = firebase.auth();
 const TS = () => firebase.firestore.FieldValue.serverTimestamp();
 let expensesRef = null;   // users/{uid}/expenses
 let budgetRef = null;     // users/{uid}/settings/budgets
+let catsRef = null;       // users/{uid}/settings/categories
 let recurringRef = null;  // users/{uid}/recurring
 let unsubs = [];
 let budgets = {};         // { Food: 300, _total: 1500, ... }
 let recurring = [];
 
 /* ---------------- Config ---------------- */
-const CATEGORIES = [
+const DEFAULT_CATEGORIES = [
   { name:"Food",          icon:"🍔", color:"#ff6b6b" },
   { name:"Transport",     icon:"🚗", color:"#2e86de" },
   { name:"Shopping",      icon:"🛍️", color:"#ff4d8d" },
@@ -459,7 +494,9 @@ const CATEGORIES = [
   { name:"Education",     icon:"📚", color:"#ff9f43" },
   { name:"Other",         icon:"📦", color:"#778ca3" }
 ];
-const catMap = Object.fromEntries(CATEGORIES.map(c => [c.name, c]));
+let customCats = [];                                    // user-added: [{name, icon, color}]
+let CATEGORIES = DEFAULT_CATEGORIES.slice();
+let catMap = Object.fromEntries(CATEGORIES.map(c => [c.name, c]));
 const fmt = n => new Intl.NumberFormat("en-US",{style:"currency",currency:"USD"}).format(n || 0);
 
 /* ---------------- State ---------------- */
@@ -493,15 +530,30 @@ function sum(arr){ return arr.reduce((a,e)=>a+e.amount,0); }
 const $ = id => document.getElementById(id);
 function renderChips(){
   $("catChips").innerHTML = CATEGORIES.map(c =>
-    `<span class="chip ${c.name===selectedCat?"active":""}" data-c="${c.name}"
-      style="${c.name===selectedCat?`background:${c.color};border-color:${c.color}`:`border-color:${c.color}33`}">${c.icon} ${c.name}</span>`
-  ).join("");
+    `<span class="chip ${c.name===selectedCat?"active":""}" data-c="${esc(c.name)}"
+      style="${c.name===selectedCat?`background:${c.color};border-color:${c.color}`:`border-color:${c.color}33`}">${esc(c.icon)} ${esc(c.name)}</span>`
+  ).join("") + `<button type="button" class="chip chip-add" id="manageCatsBtn" title="Add or remove your own categories">＋ Manage</button>`;
 }
 $("catChips").addEventListener("click", e => {
-  const chip = e.target.closest(".chip"); if(!chip) return;
+  if(e.target.closest("#manageCatsBtn")) return openCats();
+  const chip = e.target.closest(".chip[data-c]"); if(!chip) return;
   selectedCat = chip.dataset.c; renderChips();
 });
-$("catFilter").innerHTML += CATEGORIES.map(c=>`<option>${c.name}</option>`).join("");
+function renderCatFilter(){
+  const cur = $("catFilter").value;
+  $("catFilter").innerHTML = `<option value="">All categories</option>` + CATEGORIES.map(c => `<option value="${esc(c.name)}">${esc(c.icon)} ${esc(c.name)}</option>`).join("");
+  $("catFilter").value = CATEGORIES.some(c => c.name === cur) ? cur : "";
+}
+// Rebuild the category list: defaults, then the user's own, with "Other" kept last
+function setCategories(custom){
+  customCats = (custom || []).filter(c => c && c.name && !DEFAULT_CATEGORIES.some(d => d.name.toLowerCase() === c.name.toLowerCase()));
+  const other = DEFAULT_CATEGORIES.find(c => c.name === "Other");
+  CATEGORIES = [...DEFAULT_CATEGORIES.filter(c => c !== other), ...customCats, other];
+  catMap = Object.fromEntries(CATEGORIES.map(c => [c.name, c]));
+  if(!catMap[selectedCat]) selectedCat = "Food";
+  renderChips(); renderCatFilter();
+}
+renderCatFilter();
 $("fDate").value = toKey(new Date());
 renderChips();
 
@@ -527,7 +579,7 @@ auth.onAuthStateChanged(user => {
   unsubs.forEach(u => u()); unsubs = [];
   expenses = []; budgets = {}; recurring = []; resetForm();
   if(!user){
-    expensesRef = budgetRef = recurringRef = null;
+    expensesRef = budgetRef = recurringRef = catsRef = null; setCategories([]);
     document.body.classList.add("signed-out");
     return;
   }
@@ -540,6 +592,7 @@ auth.onAuthStateChanged(user => {
   const userRef = db.collection("users").doc(user.uid);
   expensesRef  = userRef.collection("expenses");
   budgetRef    = userRef.collection("settings").doc("budgets");
+  catsRef      = userRef.collection("settings").doc("categories");
   recurringRef = userRef.collection("recurring");
   startSync();
 });
@@ -571,6 +624,12 @@ function startSync(){
     budgets = (snap.exists && snap.data().limits) || {};
     renderBudgets();
   }, err => { console.error(err); $("budgetList").innerHTML = `<div class="empty">⚠️ ${esc(err.message)}</div>`; }));
+
+  unsubs.push(catsRef.onSnapshot(snap => {
+    setCategories((snap.exists && snap.data().custom) || []);
+    renderAll(); renderRecurring();
+    if(!$("catModal").hidden) renderCatManager();
+  }, err => console.error(err)));
 
   unsubs.push(recurringRef.onSnapshot(snap => {
     recurring = snap.docs.map(d => ({ id:d.id, ...d.data() }));
@@ -658,6 +717,48 @@ $("recurringList").addEventListener("click", async e => {
       toast("⏸️ Paused");
     }
   }catch(err){ toast("Error: " + err.message); }
+});
+
+/* ---------------- Custom categories ---------------- */
+const QUICK_ICONS = ["🏠","🐶","🎁","💼","☕","🍷","🏋️","🎮","👶","🚌","💇","🧹","🛠️","📱","🌱","🧾","⛽","🎓","💝","🏦"];
+const CAT_COLORS = ["#e84393","#0984e3","#00b894","#fdcb6e","#6c5ce7","#e17055","#00cec9","#d63031","#a29bfe","#2d3436"];
+function renderCatManager(){
+  $("catCustomList").innerHTML = customCats.length
+    ? customCats.map((c,i) => `<div class="rec"><div class="ic" style="background:${c.color}22">${esc(c.icon)}</div>
+        <div class="info"><div class="t">${esc(c.name)}</div><div class="m"><span class="swatch" style="background:${c.color}"></span>${c.color}</div></div>
+        <button type="button" data-cdel="${i}" title="Remove category">🗑️</button></div>`).join("")
+    : `<div class="empty" style="padding:14px 0">No custom categories yet.</div>`;
+  $("catCount").textContent = `${customCats.length}/20`;
+}
+function openCats(){
+  $("catIcon").value = "🏷️"; $("catName").value = "";
+  $("catColor").value = CAT_COLORS[customCats.length % CAT_COLORS.length];
+  $("quickIcons").innerHTML = QUICK_ICONS.map(i => `<button type="button" data-qi="${i}">${i}</button>`).join("");
+  renderCatManager(); $("catModal").hidden = false; setTimeout(() => $("catName").focus(), 50);
+}
+const closeCats = () => { $("catModal").hidden = true; };
+const saveCats = list => catsRef.set({ custom:list, updatedAt:TS() }).catch(err => toast("Error: " + err.message));
+$("closeCats").addEventListener("click", closeCats);
+$("doneCats").addEventListener("click", closeCats);
+$("catModal").addEventListener("click", e => {
+  if(e.target.id === "catModal") return closeCats();
+  const qi = e.target.closest("[data-qi]"); if(qi){ $("catIcon").value = qi.dataset.qi; return; }
+  const del = e.target.closest("[data-cdel]"); if(!del) return;
+  const c = customCats[+del.dataset.cdel];
+  if(!confirm(`Remove the "${c.name}" category? Existing expenses keep the name but show as Other.`)) return;
+  saveCats(customCats.filter((_,i) => i !== +del.dataset.cdel)); toast(`🗑️ Removed ${c.name}`);
+});
+$("catForm").addEventListener("submit", e => {
+  e.preventDefault();
+  const name = $("catName").value.trim().replace(/\s+/g, " ");
+  const icon = ([...($("catIcon").value.trim())].slice(0, 2).join("")) || "🏷️";
+  const color = /^#[0-9a-f]{6}$/i.test($("catColor").value) ? $("catColor").value : "#778ca3";
+  if(!/^[\p{L}\p{N} &'-]{1,20}$/u.test(name)) return toast("Use 1–20 letters, numbers, spaces, & ' or -");
+  if(CATEGORIES.some(c => c.name.toLowerCase() === name.toLowerCase())) return toast("That category already exists");
+  if(customCats.length >= 20) return toast("You can add up to 20 categories");
+  saveCats([...customCats, { name, icon, color }]);
+  selectedCat = name; toast(`✅ Added ${icon} ${name}`);
+  $("catName").value = ""; $("catColor").value = CAT_COLORS[(customCats.length + 1) % CAT_COLORS.length];
 });
 
 /* ---------------- Budgets ---------------- */

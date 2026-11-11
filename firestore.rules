@@ -42,7 +42,7 @@ service cloud.firestore {
     function validBudgets() {
       let d = request.resource.data;
       return d.keys().hasOnly(['limits','updatedAt'])
-        && d.limits is map && d.limits.size() <= 20;
+        && d.limits is map && d.limits.size() <= 40;
     }
 
     match /users/{userId}/expenses/{expenseId} {
@@ -55,9 +55,18 @@ service cloud.firestore {
       allow create, update: if isOwner(userId) && validRecurring();
     }
 
+    function validCategories() {
+      let d = request.resource.data;
+      return d.keys().hasOnly(['custom','updatedAt'])
+        && d.custom is list && d.custom.size() <= 20;
+    }
+
     match /users/{userId}/settings/{docId} {
       allow read: if isOwner(userId);
-      allow write: if isOwner(userId) && docId == 'budgets' && validBudgets();
+      allow write: if isOwner(userId) && (
+        (docId == 'budgets' && validBudgets()) ||
+        (docId == 'categories' && validCategories())
+      );
     }
 
     // Everything else is locked
