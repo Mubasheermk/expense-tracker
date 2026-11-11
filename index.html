@@ -187,7 +187,7 @@
 
   /* Quick-add bar */
   .quick{margin-bottom:20px}
-  .quick-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+  .quick-head{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px}
   .quick-head h2{margin:0}
   .quick-hint{font-size:.75rem;color:var(--muted)}
   .qgrid{display:grid;grid-template-columns:2fr 1fr 1.1fr 1fr 1fr;gap:12px;align-items:end}
@@ -197,6 +197,18 @@
   .q-btn .btn-primary{width:auto;white-space:nowrap;padding:12px 28px}
   @media(max-width:900px){.qgrid{grid-template-columns:1fr 1fr}.q-desc{grid-column:1/-1}.q-btn{width:100%}.q-btn .btn-primary{flex:1}}
   #repeatRow[hidden]{display:none}
+  .seg{display:inline-flex;background:var(--soft);border-radius:12px;padding:3px;gap:3px}
+  .seg button{font:inherit;font-size:.8rem;font-weight:600;border:none;background:transparent;color:var(--muted);padding:6px 12px;border-radius:9px;cursor:pointer;white-space:nowrap}
+  .seg button.active{background:var(--surface);color:var(--text);box-shadow:0 2px 6px rgba(0,0,0,.08)}
+  .seg button[data-type="income"].active{color:#10ac84}
+  #expForm.is-income .btn-primary{background:linear-gradient(90deg,#10ac84,#1dd1a1)}
+  .cashflow{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+  @media(max-width:700px){.cashflow{grid-template-columns:1fr 1fr}}
+  .cf{padding:14px;border-radius:14px;background:var(--surface)}
+  .cf .cl{font-size:.78rem;color:var(--muted)}
+  .cf .cv{font-size:1.45rem;font-weight:700;margin:2px 0}
+  .cf .cs{font-size:.72rem;color:var(--muted)}
+  .item.inc .amt{color:#10ac84!important}
   .insights{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px}
   .ins{display:flex;gap:12px;align-items:flex-start;padding:14px;border-radius:14px;background:var(--surface);border-left:5px solid var(--accent,#8854d0)}
   .ins .ii{font-size:1.4rem;line-height:1}
@@ -278,7 +290,10 @@
   <div class="card quick">
     <div class="quick-head">
       <h2 id="formTitle">➕ Add Expense</h2>
-      <span class="quick-hint">Press Enter to add</span>
+      <div class="seg" id="typeSeg" role="tablist" aria-label="Record type">
+        <button type="button" class="active" data-type="expense">💸 Expense</button>
+        <button type="button" data-type="income">💵 Income</button>
+      </div>
     </div>
     <form id="expForm" autocomplete="off">
       <div class="qgrid">
@@ -350,6 +365,12 @@
     </div>
   </div>
 
+  <!-- Cash flow -->
+  <div class="card" style="margin-bottom:20px">
+    <div class="card-head"><h2>💵 Cash flow <span class="sub-h" id="cashSub"></span></h2></div>
+    <div class="cashflow" id="cashflow"></div>
+  </div>
+
   <!-- Insights -->
   <div class="card" id="insightsCard" style="margin-bottom:20px">
     <div class="card-head">
@@ -382,14 +403,14 @@
         <div class="chart-box"><canvas id="barChart"></canvas></div>
         <div class="chart-box"><canvas id="pieChart"></canvas></div>
       </div>
-      <div class="period-total">Total for this period: <b id="periodTotal">$0.00</b> · Avg per <span id="avgUnit">hour</span>: <b id="periodAvg">$0.00</b></div>
+      <div class="period-total">Spent this period: <b id="periodTotal">$0.00</b> · Avg per <span id="avgUnit">hour</span>: <b id="periodAvg">$0.00</b><span id="periodIncome"></span></div>
     </div>
   </div>
 
   <!-- List -->
   <div class="card mt">
     <div class="list-head">
-      <h2 style="margin:0">🧾 Recent Expenses</h2>
+      <h2 style="margin:0">🧾 Transactions</h2>
       <div class="filters">
         <input id="search" placeholder="🔍 Search…" />
         <select id="catFilter"><option value="">All categories</option></select>
@@ -403,7 +424,7 @@
             <select id="exportRange">
               <option value="filtered">Current list (search &amp; filter)</option>
               <option value="period">Chart period shown above</option>
-              <option value="all">All expenses</option>
+              <option value="all">Everything (expenses &amp; income)</option>
             </select>
             <button type="button" data-fmt="xlsx"><span class="fi" style="background:#1d6f42">X</span> Excel (.xlsx)</button>
             <button type="button" data-fmt="csv"><span class="fi" style="background:#2e86de">C</span> CSV (.csv)</button>
@@ -508,13 +529,29 @@ const DEFAULT_CATEGORIES = [
   { name:"Education",     icon:"📚", color:"#ff9f43" },
   { name:"Other",         icon:"📦", color:"#778ca3" }
 ];
+const INCOME_CATEGORIES = [
+  { name:"Salary",       icon:"💼", color:"#10ac84" },
+  { name:"Freelance",    icon:"🧑‍💻", color:"#00b894" },
+  { name:"Investments",  icon:"📈", color:"#0984e3" },
+  { name:"Gifts",        icon:"🎁", color:"#e84393" },
+  { name:"Refunds",      icon:"↩️", color:"#00cec9" },
+  { name:"Other income", icon:"💵", color:"#6ab04c" }
+];
+const PAY_OPTIONS = {
+  expense: ["Card","Cash","Bank Transfer","Mobile Pay","Other"],
+  income:  ["Direct Deposit","Bank Transfer","Cash","Check","Mobile Pay","Other"]
+};
 let customCats = [];                                    // user-added: [{name, icon, color}]
 let CATEGORIES = DEFAULT_CATEGORIES.slice();
-let catMap = Object.fromEntries(CATEGORIES.map(c => [c.name, c]));
+let catMap = Object.fromEntries([...CATEGORIES, ...INCOME_CATEGORIES].map(c => [c.name, c]));
 const fmt = n => new Intl.NumberFormat("en-US",{style:"currency",currency:"USD"}).format(n || 0);
 
 /* ---------------- State ---------------- */
-let expenses = [];
+let allRecords = [];   // every record (expenses + income), newest first
+let expenses = [];     // spending only: drives budgets, insights, the pie chart and the summary cards
+let incomes = [];      // income only
+let formType = "expense";
+const isIncome = e => e.type === "income";
 let period = "day";
 let anchor = new Date();       // reference date for the chart period
 let selectedCat = "Food";
@@ -543,11 +580,26 @@ function sum(arr){ return arr.reduce((a,e)=>a+e.amount,0); }
 /* ---------------- UI setup ---------------- */
 const $ = id => document.getElementById(id);
 function renderChips(){
-  $("catChips").innerHTML = CATEGORIES.map(c =>
+  const list = formType === "income" ? INCOME_CATEGORIES : CATEGORIES;
+  $("catChips").innerHTML = list.map(c =>
     `<span class="chip ${c.name===selectedCat?"active":""}" data-c="${esc(c.name)}"
       style="${c.name===selectedCat?`background:${c.color};border-color:${c.color}`:`border-color:${c.color}33`}">${esc(c.icon)} ${esc(c.name)}</span>`
-  ).join("") + `<button type="button" class="chip chip-add" id="manageCatsBtn" title="Add or remove your own categories">＋ Manage</button>`;
+  ).join("") + (formType === "income" ? "" : `<button type="button" class="chip chip-add" id="manageCatsBtn" title="Add or remove your own categories">＋ Manage</button>`);
 }
+// Switch the form between Expense and Income
+function setFormType(t, keepCategory){
+  formType = t;
+  document.querySelectorAll("#typeSeg button").forEach(b => b.classList.toggle("active", b.dataset.type === t));
+  $("expForm").classList.toggle("is-income", t === "income");
+  const pay = $("fPay").value;
+  $("fPay").innerHTML = PAY_OPTIONS[t].map(o => `<option>${o}</option>`).join("");
+  if(PAY_OPTIONS[t].includes(pay)) $("fPay").value = pay;
+  $("fTitle").placeholder = t === "income" ? "e.g. Paycheck" : "e.g. Lunch with team";
+  if(!keepCategory) selectedCat = t === "income" ? "Salary" : "Food";
+  if(!editingId){ $("formTitle").textContent = t === "income" ? "➕ Add Income" : "➕ Add Expense"; $("submitBtn").textContent = t === "income" ? "Add Income" : "Add Expense"; }
+  renderChips();
+}
+$("typeSeg").addEventListener("click", e => { const b = e.target.closest("button[data-type]"); if(b && b.dataset.type !== formType) setFormType(b.dataset.type); });
 $("catChips").addEventListener("click", e => {
   if(e.target.closest("#manageCatsBtn")) return openCats();
   const chip = e.target.closest(".chip[data-c]"); if(!chip) return;
@@ -555,16 +607,18 @@ $("catChips").addEventListener("click", e => {
 });
 function renderCatFilter(){
   const cur = $("catFilter").value;
-  $("catFilter").innerHTML = `<option value="">All categories</option>` + CATEGORIES.map(c => `<option value="${esc(c.name)}">${esc(c.icon)} ${esc(c.name)}</option>`).join("");
-  $("catFilter").value = CATEGORIES.some(c => c.name === cur) ? cur : "";
+  const opt = c => `<option value="${esc(c.name)}">${esc(c.icon)} ${esc(c.name)}</option>`;
+  $("catFilter").innerHTML = `<option value="">All categories</option><option value="__expense">💸 All expenses</option><option value="__income">💵 All income</option>`
+    + `<optgroup label="Expenses">${CATEGORIES.map(opt).join("")}</optgroup><optgroup label="Income">${INCOME_CATEGORIES.map(opt).join("")}</optgroup>`;
+  $("catFilter").value = (cur.startsWith("__") || catMap[cur]) ? cur : "";
 }
 // Rebuild the category list: defaults, then the user's own, with "Other" kept last
 function setCategories(custom){
   customCats = (custom || []).filter(c => c && c.name && !DEFAULT_CATEGORIES.some(d => d.name.toLowerCase() === c.name.toLowerCase()));
   const other = DEFAULT_CATEGORIES.find(c => c.name === "Other");
   CATEGORIES = [...DEFAULT_CATEGORIES.filter(c => c !== other), ...customCats, other];
-  catMap = Object.fromEntries(CATEGORIES.map(c => [c.name, c]));
-  if(!catMap[selectedCat]) selectedCat = "Food";
+  catMap = Object.fromEntries([...CATEGORIES, ...INCOME_CATEGORIES].map(c => [c.name, c]));
+  if(formType === "expense" && !CATEGORIES.some(c => c.name === selectedCat)) selectedCat = "Food";
   renderChips(); renderCatFilter();
 }
 renderCatFilter();
@@ -591,7 +645,7 @@ $("signOutBtn").addEventListener("click", () => auth.signOut());
 
 auth.onAuthStateChanged(user => {
   unsubs.forEach(u => u()); unsubs = [];
-  expenses = []; budgets = {}; recurring = []; resetForm();
+  allRecords = []; expenses = []; incomes = []; budgets = {}; recurring = []; setFormType("expense"); resetForm();
   if(!user){
     expensesRef = budgetRef = recurringRef = catsRef = null; setCategories([]);
     document.body.classList.add("signed-out");
@@ -615,7 +669,7 @@ auth.onAuthStateChanged(user => {
 function setStatus(){
   if(!expensesRef) return;
   if(!navigator.onLine){ $("dbDot").className = "dot off"; $("dbStatus").textContent = `Offline · changes will sync`; return; }
-  $("dbDot").className = "dot ok"; $("dbStatus").textContent = `Synced · ${expenses.length} records`;
+  $("dbDot").className = "dot ok"; $("dbStatus").textContent = `Synced · ${allRecords.length} records`;
 }
 window.addEventListener("online", setStatus);
 window.addEventListener("offline", setStatus);
@@ -627,10 +681,12 @@ function onSyncError(err){
 }
 function startSync(){
   unsubs.push(expensesRef.orderBy("date","desc").onSnapshot(snap => {
-    expenses = snap.docs.map(d => {
+    allRecords = snap.docs.map(d => {
       const x = d.data();
       return { id:d.id, ...x, amount:Number(x.amount)||0, _date:parseKey(x.date) };
     });
+    expenses = allRecords.filter(e => !isIncome(e));
+    incomes  = allRecords.filter(isIncome);
     setStatus(); renderAll();
   }, onSyncError));
 
@@ -681,6 +737,7 @@ async function processRecurring(){
         batch.set(expensesRef.doc(`rec_${r.id}_${next}`), {
           title:r.title, amount:r.amount, date:next, category:r.category, payment:r.payment,
           ...(r.note ? { note:r.note } : {}), ...(r.tags && r.tags.length ? { tags:r.tags } : {}),
+          ...(r.type === "income" ? { type:"income" } : {}),
           recurringId:r.id, createdAt:TS()
         });
         next = advanceDate(r, next); n++;
@@ -697,7 +754,10 @@ async function processRecurring(){
 function renderRecurring(){
   if(!recurring.length){ $("recurringList").innerHTML = `<div class="empty">No recurring expenses yet.<br>Choose <b>Repeat → Monthly</b> when adding rent, subscriptions or bills.</div>`; return; }
   const sorted = recurring.slice().sort((a,b) => (a.active===false) - (b.active===false) || (a.nextDate > b.nextDate ? 1 : -1));
-  const monthlyCost = recurring.filter(r => r.active !== false).reduce((s,r) => s + (r.frequency==="weekly" ? r.amount*52/12 : r.frequency==="yearly" ? r.amount/12 : r.amount), 0);
+  const perMonth = r => r.frequency==="weekly" ? r.amount*52/12 : r.frequency==="yearly" ? r.amount/12 : r.amount;
+  const active = recurring.filter(r => r.active !== false);
+  const monthlyCost = active.filter(r => r.type !== "income").reduce((s,r) => s + perMonth(r), 0);
+  const monthlyIn = active.filter(r => r.type === "income").reduce((s,r) => s + perMonth(r), 0);
   $("recurringList").innerHTML = sorted.map(r => {
     const c = catMap[r.category] || catMap.Other; const paused = r.active === false;
     const next = r.nextDate ? parseKey(r.nextDate).toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"}) : "—";
@@ -705,11 +765,11 @@ function renderRecurring(){
       <div class="ic" style="background:${c.color}22">${c.icon}</div>
       <div class="info"><div class="t">${esc(r.title)}</div>
         <div class="m">${FREQ_LABEL[r.frequency]||""} · ${paused ? "Paused" : "Next " + next}</div></div>
-      <div class="a" style="color:${c.color}">${fmt(r.amount)}</div>
+      <div class="a" style="color:${r.type === "income" ? "#10ac84" : c.color}">${r.type === "income" ? "+" : ""}${fmt(r.amount)}</div>
       <button data-rid="${r.id}" data-ract="toggle" title="${paused?"Resume":"Pause"}">${paused?"▶️":"⏸️"}</button>
       <button data-rid="${r.id}" data-ract="del" title="Stop repeating">🗑️</button>
     </div>`;
-  }).join("") + `<div class="sub-h" style="margin-top:6px">≈ <b>${fmt(monthlyCost)}</b> per month in active recurring expenses</div>`;
+  }).join("") + `<div class="sub-h" style="margin-top:6px">≈ <b>${fmt(monthlyCost)}</b> per month out${monthlyIn ? ` · <b class="down-t">+${fmt(monthlyIn)}</b> in` : ""} from active recurring items</div>`;
 }
 
 $("recurringList").addEventListener("click", async e => {
@@ -844,6 +904,7 @@ $("expForm").addEventListener("submit", async e => {
     category: selectedCat,
     payment: $("fPay").value
   };
+  if(formType === "income") data.type = "income";
   const note = $("fNote").value.trim().slice(0, 200), tags = parseTags(note);
   if(note) data.note = note;
   if(tags.length) data.tags = tags;
@@ -854,8 +915,8 @@ $("expForm").addEventListener("submit", async e => {
   try{
     if(editingId){
       const del = firebase.firestore.FieldValue.delete();
-      expensesRef.doc(editingId).update({ note: del, tags: del, ...data, updatedAt: TS() }).catch(fail);
-      toast("✏️ Expense updated");
+      expensesRef.doc(editingId).update({ note: del, tags: del, type: del, ...data, updatedAt: TS() }).catch(fail);
+      toast(formType === "income" ? "✏️ Income updated" : "✏️ Expense updated");
     }else if(repeat){
       // Create the rule; processRecurring() adds this and future occurrences when they're due
       const rule = { ...data, frequency:repeat, anchorDay:parseKey(data.date).getDate(),
@@ -863,13 +924,13 @@ $("expForm").addEventListener("submit", async e => {
       delete rule.date;
       recurringRef.add(rule).catch(fail);
       toast(data.date <= toKey(new Date())
-        ? `🔁 ${FREQ_LABEL[repeat]} expense set up`
-        : `🔁 ${FREQ_LABEL[repeat]} expense starts ${parseKey(data.date).toLocaleDateString("en-US",{month:"short",day:"numeric"})}`);
+        ? `🔁 ${FREQ_LABEL[repeat]} ${formType} set up`
+        : `🔁 ${FREQ_LABEL[repeat]} ${formType} starts ${parseKey(data.date).toLocaleDateString("en-US",{month:"short",day:"numeric"})}`);
     }else{
       expensesRef.add({ ...data, createdAt: TS() }).catch(fail);
-      toast("✅ Expense added");
+      toast(formType === "income" ? "💵 Income added" : "✅ Expense added");
     }
-    budgetAlert(data.category);
+    if(formType === "expense") budgetAlert(data.category);
     resetForm();
   }catch(err){ fail(err); }
 });
@@ -877,19 +938,20 @@ $("expForm").addEventListener("submit", async e => {
 function resetForm(){
   editingId = null;
   $("expForm").reset(); $("fDate").value = toKey(new Date());
-  $("formTitle").textContent = "➕ Add Expense"; $("submitBtn").textContent = "Add Expense";
+  $("formTitle").textContent = formType === "income" ? "➕ Add Income" : "➕ Add Expense";
+  $("submitBtn").textContent = formType === "income" ? "Add Income" : "Add Expense";
   $("cancelEdit").hidden = true; $("repeatRow").hidden = false;
 }
 $("cancelEdit").addEventListener("click", resetForm);
 
 $("list").addEventListener("click", async e => {
   const btn = e.target.closest("button"); if(!btn) return;
-  const id = btn.dataset.id; const exp = expenses.find(x=>x.id===id); if(!exp) return;
+  const id = btn.dataset.id; const exp = allRecords.find(x=>x.id===id); if(!exp) return;
   if(btn.dataset.act==="edit"){
-    editingId = id;
+    editingId = id; setFormType(isIncome(exp) ? "income" : "expense", true);
     $("fTitle").value = exp.title; $("fAmount").value = exp.amount; $("fDate").value = exp.date; $("fNote").value = exp.note || "";
-    $("fPay").value = exp.payment || "Card"; selectedCat = exp.category in catMap ? exp.category : "Other"; renderChips();
-    $("formTitle").textContent = "✏️ Edit Expense"; $("submitBtn").textContent = "Save Changes";
+    $("fPay").value = exp.payment || "Card"; selectedCat = exp.category in catMap ? exp.category : (isIncome(exp) ? "Other income" : "Other"); renderChips();
+    $("formTitle").textContent = isIncome(exp) ? "✏️ Edit Income" : "✏️ Edit Expense"; $("submitBtn").textContent = "Save Changes";
     $("cancelEdit").hidden = false; $("repeatRow").hidden = true; window.scrollTo({top:0,behavior:"smooth"});
   }else if(btn.dataset.act==="del"){
     if(!confirm(`Delete "${exp.title}"?`)) return;
@@ -899,7 +961,26 @@ $("list").addEventListener("click", async e => {
 });
 
 /* ---------------- Rendering ---------------- */
-function renderAll(){ renderStats(); renderCharts(); renderList(); renderBudgets(); renderInsights(); }
+function renderAll(){ renderStats(); renderCashflow(); renderCharts(); renderList(); renderBudgets(); renderInsights(); }
+
+/* ---------------- Cash flow ---------------- */
+function renderCashflow(){
+  const now = new Date(), mr = periodRange("month", now), yr = periodRange("year", now);
+  const inM = sum(incomes.filter(e => inRange(e, mr))), outM = sum(expenses.filter(e => inRange(e, mr)));
+  const inY = sum(incomes.filter(e => inRange(e, yr))), outY = sum(expenses.filter(e => inRange(e, yr)));
+  const net = inM - outM, rate = inM > 0 ? Math.round(net / inM * 100) : null;
+  $("cashSub").textContent = `· ${MONTHS[now.getMonth()]} ${now.getFullYear()}`;
+  if(!inY && !incomes.length){
+    $("cashflow").innerHTML = `<div class="empty" style="grid-column:1/-1">Switch the form to <b>💵 Income</b> to add paychecks and other income. You'll see your net balance and savings rate here.</div>`;
+    return;
+  }
+  const tile = (label, value, cls, sub) => `<div class="cf"><div class="cl">${label}</div><div class="cv ${cls}">${value}</div><div class="cs">${sub}</div></div>`;
+  $("cashflow").innerHTML =
+    tile("Income", fmt(inM), "down-t", `${fmt(inY)} this year`) +
+    tile("Spent", fmt(outM), "", `${fmt(outY)} this year`) +
+    tile("Net", (net >= 0 ? "+" : "−") + fmt(Math.abs(net)), net >= 0 ? "down-t" : "up-t", `${inY - outY >= 0 ? "+" : "−"}${fmt(Math.abs(inY - outY))} this year`) +
+    tile("Savings rate", rate === null ? "—" : `${rate}%`, rate === null ? "" : rate >= 0 ? "down-t" : "up-t", rate === null ? "No income this month yet" : rate >= 20 ? "Great — 20%+ is a common goal" : rate >= 0 ? "Share of income you kept" : "Spending more than you earned");
+}
 
 /* ---------------- Insights ---------------- */
 // Compares this month so far with the same days of last month (e.g. Nov 1–11 vs Oct 1–11)
@@ -978,7 +1059,9 @@ function renderStats(){
   [["day","stToday","stTodayN"],["week","stWeek","stWeekN"],["month","stMonth","stMonthN"],["year","stYear","stYearN"]]
     .forEach(([p,v,n]) => {
       const r = periodRange(p, now); const items = expenses.filter(e=>inRange(e,r));
-      $(v).textContent = fmt(sum(items)); $(n).textContent = `${items.length} expense${items.length===1?"":"s"}`;
+      const inc = sum(incomes.filter(e=>inRange(e,r)));
+      $(v).textContent = fmt(sum(items));
+      $(n).textContent = `${items.length} expense${items.length===1?"":"s"}${inc ? ` · +${fmt(inc)} in` : ""}`;
     });
 }
 
@@ -990,7 +1073,8 @@ function buildBuckets(){
     labels=[]; const days=[];
     for(let i=6;i>=0;i--){ const d=addDays(startOfDay(anchor),-i); days.push(toKey(d)); labels.push(i===0?"Selected":`${MONTHS[d.getMonth()]} ${d.getDate()}`); }
     const vals = days.map(k => sum(expenses.filter(e=>e.date===k)));
-    return { labels, vals, highlight:6, unit:"day", range:[s,t] };
+    const inc = days.map(k => sum(incomes.filter(e=>e.date===k)));
+    return { labels, vals, inc, highlight:6, unit:"day", range:[s,t] };
   }
   if(period==="week"){ labels=DOW; keyOf=e=>(e._date.getDay()+6)%7; unit="day"; }
   if(period==="month"){
@@ -998,9 +1082,10 @@ function buildBuckets(){
     labels = Array.from({length:n},(_,i)=>String(i+1)); keyOf=e=>e._date.getDate()-1; unit="day";
   }
   if(period==="year"){ labels=MONTHS; keyOf=e=>e._date.getMonth(); unit="month"; }
-  const vals = labels.map(()=>0);
+  const vals = labels.map(()=>0), inc = labels.map(()=>0);
   expenses.filter(e=>inRange(e,[s,t])).forEach(e=> vals[keyOf(e)] += e.amount);
-  return { labels, vals, highlight:-1, unit, range:[s,t] };
+  incomes.filter(e=>inRange(e,[s,t])).forEach(e=> inc[keyOf(e)] += e.amount);
+  return { labels, vals, inc, highlight:-1, unit, range:[s,t] };
 }
 
 function rangeLabel(){
@@ -1026,9 +1111,11 @@ function renderCharts(){
 
   const barCfg = {
     type:"bar",
-    data:{ labels:b.labels, datasets:[{ label:"Spent", data:b.vals, backgroundColor:colors, borderRadius:8, maxBarThickness:42 }] },
+    data:{ labels:b.labels, datasets:[{ label:"Spent", data:b.vals, backgroundColor:colors, borderRadius:8, maxBarThickness:42 },
+      ...(b.inc.some(v => v > 0) ? [{ label:"Income", data:b.inc, backgroundColor:"#1dd1a1", borderRadius:8, maxBarThickness:42 }] : [])] },
     options:{ responsive:true, maintainAspectRatio:false, animation:{duration:600},
-      plugins:{ legend:{display:false}, tooltip:{callbacks:{label:c=>" "+fmt(c.parsed.y)}} },
+      plugins:{ legend:{display:b.inc.some(v => v > 0), position:"top", align:"end", labels:{boxWidth:10, usePointStyle:true}},
+        tooltip:{callbacks:{label:c=>` ${c.dataset.label}: ${fmt(c.parsed.y)}`}} },
       scales:{ y:{ beginAtZero:true, ticks:{callback:v=>"$"+v}, grid:{color:cssVar("--soft")} }, x:{ grid:{display:false} } } }
   };
   if(barChart){ barChart.data = barCfg.data; barChart.update(); } else barChart = new Chart(ctx, barCfg);
@@ -1050,7 +1137,8 @@ function renderCharts(){
   if(pieChart){ pieChart.data = pieData; pieChart.options.plugins.tooltip.enabled = cats.length>0; pieChart.update(); }
   else pieChart = new Chart($("pieChart"), pieCfg);
 
-  const total = sum(items);
+  const total = sum(items), periodIn = sum(incomes.filter(e=>inRange(e,b.range)));
+  $("periodIncome").textContent = periodIn ? ` · Income: ${fmt(periodIn)} · Net: ${periodIn - total >= 0 ? "+" : "−"}${fmt(Math.abs(periodIn - total))}` : "";
   const divisor = period==="day"?1 : period==="week"?7 : period==="month"?b.labels.length : 12;
   $("periodTotal").textContent = fmt(total);
   $("avgUnit").textContent = period==="year" ? "month" : "day";
@@ -1067,23 +1155,25 @@ function parseTags(text){
 // Shared by the list and "Export → Current list". "#tag" searches tags; anything else searches title, note and tags.
 function matchesFilter(e){
   const q = $("search").value.trim().toLowerCase(); const cf = $("catFilter").value;
-  if(cf && e.category !== cf) return false;
+  if(cf === "__income" && !isIncome(e)) return false;
+  if(cf === "__expense" && isIncome(e)) return false;
+  if(cf && !cf.startsWith("__") && e.category !== cf) return false;
   if(!q) return true;
   if(q.startsWith("#") && q.length > 1) return (e.tags || []).some(t => t.startsWith(q.slice(1)));
   return (e.title || "").toLowerCase().includes(q) || (e.note || "").toLowerCase().includes(q) || (e.tags || []).some(t => t.includes(q));
 }
 function renderList(){
-  const rows = expenses.filter(matchesFilter);
-  if(!rows.length){ $("list").innerHTML = `<div class="empty">${expenses.length?"No matching expenses":"No expenses yet — add your first one! 🎉"}</div>`; return; }
+  const rows = allRecords.filter(matchesFilter);
+  if(!rows.length){ $("list").innerHTML = `<div class="empty">${allRecords.length?"Nothing matches this search":"No expenses yet — add your first one! 🎉"}</div>`; return; }
   $("list").innerHTML = rows.map(e => {
     const c = catMap[e.category] || catMap.Other;
-    return `<div class="item" style="border-left-color:${c.color}">
+    return `<div class="item ${isIncome(e) ? "inc" : ""}" style="border-left-color:${c.color}">
       <div class="ic" style="background:${c.color}22">${c.icon}</div>
       <div class="info"><div class="title">${esc(e.title)}</div>
         <div class="meta">${esc(e.category)} · ${e._date.toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"})} · ${esc(e.payment||"")}${e.recurringId ? " · 🔁" : ""}</div>
         ${e.note ? `<div class="note" title="${esc(e.note)}">${esc(e.note.replace(/#[\p{L}\p{N}_-]+/gu, "").replace(/\s+/g, " ").trim())}</div>` : ""}
         ${(e.tags||[]).length ? `<div class="tags">${e.tags.map(t => `<button class="tag" data-tag="${esc(t)}" title="Show #${esc(t)}">#${esc(t)}</button>`).join("")}</div>` : ""}</div>
-      <div class="amt" style="color:${c.color}">${fmt(e.amount)}</div>
+      <div class="amt" style="color:${c.color}">${isIncome(e) ? "+" : ""}${fmt(e.amount)}</div>
       <div class="ops"><button data-act="edit" data-id="${e.id}" title="Edit">✏️</button><button data-act="del" data-id="${e.id}" title="Delete">🗑️</button></div>
     </div>`;
   }).join("");
@@ -1113,9 +1203,9 @@ function loadScript(src){
 function exportRows(){
   const range = $("exportRange").value;
   let rows;
-  if(range === "all") rows = expenses.slice();
-  else if(range === "period") rows = expenses.filter(e => inRange(e, periodRange(period, anchor)));
-  else rows = expenses.filter(matchesFilter);
+  if(range === "all") rows = allRecords.slice();
+  else if(range === "period") rows = allRecords.filter(e => inRange(e, periodRange(period, anchor)));
+  else rows = allRecords.filter(matchesFilter);
   return rows.sort((a,b) => a.date < b.date ? 1 : a.date > b.date ? -1 : 0);
 }
 function rangeText(){
@@ -1127,13 +1217,18 @@ function rangeText(){
   if($("search").value.trim()) parts.push(`Search: "${$("search").value.trim()}"`);
   return parts.length ? parts.join(" · ") : "All expenses";
 }
-const HEAD = ["Date","Description","Category","Payment","Note","Tags","Amount (USD)"];
+const HEAD = ["Date","Type","Description","Category","Payment","Note","Tags","Amount (USD)"];
 const AMT = HEAD.length - 1;                                   // amount is always the last column
 const AMT_COL = String.fromCharCode(65 + AMT);                 // its spreadsheet letter (G)
-const toRow = e => [e.date, e.title || "", e.category || "", e.payment || "",
+const toRow = e => [e.date, isIncome(e) ? "Income" : "Expense", e.title || "", e.category || "", e.payment || "",
   (e.note || "").replace(/#[\p{L}\p{N}_-]+/gu, "").replace(/\s+/g, " ").trim(), (e.tags || []).map(t => "#" + t).join(" "),
   Math.round(e.amount*100)/100];
-const totalRow = v => { const r = Array(HEAD.length).fill(""); r[AMT - 1] = "Total"; r[AMT] = v; return r; };
+const labelRow = (label, v) => { const r = Array(HEAD.length).fill(""); r[AMT - 1] = label; r[AMT] = v; return r; };
+// Summary rows: spent, plus income and net when the export includes income
+function totalRows(rows, f){
+  const out = sum(rows.filter(e => !isIncome(e))), inc = sum(rows.filter(isIncome));
+  return inc ? [labelRow("Total spent", f(out)), labelRow("Total income", f(inc)), labelRow("Net", f(inc - out))] : [labelRow("Total spent", f(out))];
+}
 const fileBase = () => `spendly-expenses-${toKey(new Date())}`;
 
 function download(blob, name){
@@ -1141,21 +1236,21 @@ function download(blob, name){
   document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 }
 // Guard against spreadsheet formula injection (cells starting with = + - @)
-const safeCell = v => typeof v === "string" && /^[=+\-@\t\r]/.test(v) ? "'" + v : v;
+const safeCell = v => typeof v === "string" && /^[=+\-@\t\r]/.test(v) && !/^-?\d+(\.\d+)?$/.test(v) ? "'" + v : v;
 
 function exportCSV(rows){
   const esc = v => { v = String(safeCell(v)); return /[",\n\r]/.test(v) ? `"${v.replace(/"/g,'""')}"` : v; };
-  const lines = [HEAD, ...rows.map(toRow), totalRow(sum(rows).toFixed(2))].map(r => r.map(esc).join(","));
+  const lines = [HEAD, ...rows.map(toRow), ...totalRows(rows, v => v.toFixed(2))].map(r => r.map(esc).join(","));
   download(new Blob(["﻿" + lines.join("\r\n")], {type:"text/csv;charset=utf-8"}), fileBase() + ".csv");
 }
 
 async function exportXLSX(rows){
   await loadScript(LIBS.xlsx);
   const data = [HEAD, ...rows.map(toRow)];   // SheetJS stores these as plain text cells, never formulas
-  data.push([], totalRow(Math.round(sum(rows)*100)/100));
+  data.push([], ...totalRows(rows, v => Math.round(v*100)/100));
   const ws = XLSX.utils.aoa_to_sheet(data);
-  ws["!cols"] = [{wch:12},{wch:32},{wch:15},{wch:14},{wch:30},{wch:20},{wch:14}];
-  for(let i = 2; i <= rows.length + 3; i++){ const c = ws[AMT_COL+i]; if(c && typeof c.v === "number") c.z = '"$"#,##0.00'; }
+  ws["!cols"] = [{wch:12},{wch:9},{wch:30},{wch:15},{wch:14},{wch:28},{wch:18},{wch:14}];
+  for(let i = 2; i <= rows.length + 5; i++){ const c = ws[AMT_COL+i]; if(c && typeof c.v === "number") c.z = '"$"#,##0.00'; }
   ws["!autofilter"] = { ref: `A1:${AMT_COL}${rows.length + 1}` };
 
   // Second sheet: totals by category
@@ -1188,20 +1283,21 @@ async function exportPDF(rows){
   doc.setTextColor(40); doc.setFontSize(11);
   doc.text(`Range: ${rangeText()}`, 40, 95);
   doc.setFont("helvetica","bold");
-  doc.text(`Total: ${fmt(sum(rows))}   ·   ${rows.length} expense${rows.length===1?"":"s"}`, 40, 112);
+  const pOut = sum(rows.filter(e => !isIncome(e))), pIn = sum(rows.filter(isIncome));
+  doc.text(`Spent: ${fmt(pOut)}${pIn ? `   ·   Income: ${fmt(pIn)}   ·   Net: ${pIn - pOut >= 0 ? "+" : "-"}${fmt(Math.abs(pIn - pOut))}` : ""}   ·   ${rows.length} record${rows.length===1?"":"s"}`, 40, 112);
 
   doc.autoTable({
     startY: 126,
     head: [HEAD],
-    body: rows.map(e => { const r = toRow(e); r[AMT] = fmt(r[AMT]); return r; }),
-    foot: [totalRow(fmt(sum(rows)))],
+    body: rows.map(e => { const r = toRow(e); r[AMT] = (isIncome(e) ? "+" : "") + fmt(r[AMT]); return r; }),
+    foot: totalRows(rows, fmt),
     styles: { fontSize: 8, cellPadding: 4 },
     headStyles: { fillColor: [46,134,222], textColor: 255 },
     footStyles: { fillColor: [238,240,251], textColor: 30, fontStyle: "bold" },
     alternateRowStyles: { fillColor: [248,249,254] },
-    columnStyles: { 0:{cellWidth:62}, 4:{cellWidth:110}, 5:{cellWidth:70}, [AMT]:{halign:"right", cellWidth:70} },
+    columnStyles: { 0:{cellWidth:58}, 1:{cellWidth:44}, 5:{cellWidth:96}, 6:{cellWidth:62}, [AMT]:{halign:"right", cellWidth:66} },
     didParseCell: d => {
-      if(d.section === "body" && d.column.index === 2){
+      if(d.section === "body" && d.column.index === 3){
         const c = catMap[d.cell.raw]; if(c){ const h = c.color.slice(1); d.cell.styles.textColor = [parseInt(h.slice(0,2),16),parseInt(h.slice(2,4),16),parseInt(h.slice(4,6),16)]; d.cell.styles.fontStyle = "bold"; }
       }
     },
@@ -1229,7 +1325,7 @@ $("exportMenu").addEventListener("click", async e => {
     if(btn.dataset.fmt === "csv") exportCSV(rows);
     else if(btn.dataset.fmt === "xlsx") await exportXLSX(rows);
     else await exportPDF(rows);
-    toast(`📥 Exported ${rows.length} expense${rows.length===1?"":"s"}`);
+    toast(`📥 Exported ${rows.length} record${rows.length===1?"":"s"}`);
     $("exportMenu").hidden = true;
   }catch(err){ console.error(err); toast("Export failed: " + err.message); }
   btns.forEach(b => b.disabled = false);
