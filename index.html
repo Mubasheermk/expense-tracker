@@ -197,6 +197,12 @@
   .q-btn .btn-primary{width:auto;white-space:nowrap;padding:12px 28px}
   @media(max-width:900px){.qgrid{grid-template-columns:1fr 1fr}.q-desc{grid-column:1/-1}.q-btn{width:100%}.q-btn .btn-primary{flex:1}}
   #repeatRow[hidden]{display:none}
+  .insights{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px}
+  .ins{display:flex;gap:12px;align-items:flex-start;padding:14px;border-radius:14px;background:var(--surface);border-left:5px solid var(--accent,#8854d0)}
+  .ins .ii{font-size:1.4rem;line-height:1}
+  .ins .iv{font-weight:700;font-size:1.05rem}
+  .ins .it{font-size:.78rem;color:var(--muted);margin-top:2px}
+  .up-t{color:#e74c3c}.down-t{color:#10ac84}
   .chip-add{font:inherit;font-size:.78rem;border:2px dashed var(--border);background:transparent;color:var(--muted)}
   .chip-add:hover{border-color:#8854d0;color:#8854d0}
   .cat-add{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap}
@@ -342,6 +348,14 @@
       </div>
       <div id="recurringList"><div class="empty">Loading…</div></div>
     </div>
+  </div>
+
+  <!-- Insights -->
+  <div class="card" id="insightsCard" style="margin-bottom:20px">
+    <div class="card-head">
+      <h2>💡 Insights <span class="sub-h" id="insightsSub"></span></h2>
+    </div>
+    <div class="insights" id="insights"><div class="empty">Loading…</div></div>
   </div>
 
   <div>
@@ -885,7 +899,79 @@ $("list").addEventListener("click", async e => {
 });
 
 /* ---------------- Rendering ---------------- */
-function renderAll(){ renderStats(); renderCharts(); renderList(); renderBudgets(); }
+function renderAll(){ renderStats(); renderCharts(); renderList(); renderBudgets(); renderInsights(); }
+
+/* ---------------- Insights ---------------- */
+// Compares this month so far with the same days of last month (e.g. Nov 1–11 vs Oct 1–11)
+function renderInsights(){
+  const now = new Date(), day = now.getDate();
+  const y = now.getFullYear(), m = now.getMonth();
+  const dim = daysIn(y, m);
+  const thisR = [new Date(y, m, 1), addDays(startOfDay(now), 1)];
+  const prevDays = Math.min(day, daysIn(y, m - 1 < 0 ? 11 : m - 1));
+  const lastR = [new Date(y, m - 1, 1), new Date(y, m - 1, prevDays + 1)];
+  const cur = expenses.filter(e => inRange(e, thisR)), prev = expenses.filter(e => inRange(e, lastR));
+  const curT = sum(cur), prevT = sum(prev);
+  $("insightsSub").textContent = `· ${MONTHS[m]} 1–${day} vs ${MONTHS[(m + 11) % 12]} 1–${prevDays}`;
+  if(!cur.length && !prev.length){ $("insights").innerHTML = `<div class="empty">Add a few expenses and insights about your spending will show up here.</div>`; return; }
+
+  const tiles = [];
+  const pct = (a, b) => b > 0 ? Math.round((a - b) / b * 100) : null;
+  const byCat = list => list.reduce((o, e) => (o[e.category] = (o[e.category] || 0) + e.amount, o), {});
+
+  // 1. Pace vs last month
+  const p = pct(curT, prevT);
+  if(p !== null) tiles.push({ icon: p > 0 ? "📈" : "📉", accent: p > 0 ? "#e74c3c" : "#10ac84",
+    value: `<span class="${p > 0 ? "up-t" : "down-t"}">${p > 0 ? "+" : ""}${p}%</span> vs last month`,
+    text: `${fmt(curT)} so far, compared with ${fmt(prevT)} by this point in ${MONTHS[(m + 11) % 12]}` });
+  else if(curT > 0) tiles.push({ icon:"🆕", accent:"#2e86de", value:`${fmt(curT)} so far`, text:"No spending recorded for the same days last month to compare with" });
+
+  // 2. Projected month end (+ budget pace)
+  if(curT > 0 && day < dim){
+    const proj = curT / day * dim; let text = `At this pace you'll spend about ${fmt(proj)} by ${MONTHS[m]} ${dim}`;
+    let accent = "#8854d0";
+    if(budgets._total > 0){
+      const diff = proj - budgets._total;
+      text += diff > 0 ? ` — ${fmt(diff)} over your ${fmt(budgets._total)} budget` : ` — within your ${fmt(budgets._total)} budget`;
+      accent = diff > 0 ? "#e74c3c" : "#10ac84";
+    }
+    tiles.push({ icon:"🔮", accent, value:`~${fmt(proj)} projected`, text });
+  }
+
+  // 3. Biggest category change
+  const cc = byCat(cur), pc = byCat(prev);
+  const changes = [...new Set([...Object.keys(cc), ...Object.keys(pc)])].map(c => ({ c, d:(cc[c] || 0) - (pc[c] || 0) })).filter(x => Math.abs(x.d) >= 1);
+  if(changes.length){
+    const up = changes.reduce((a, b) => b.d > a.d ? b : a), down = changes.reduce((a, b) => b.d < a.d ? b : a);
+    const show = (x, isUp) => { const c = catMap[x.c] || catMap.Other, q = pct(cc[x.c] || 0, pc[x.c] || 0);
+      tiles.push({ icon:c.icon, accent:c.color, value:`${esc(x.c)} <span class="${isUp ? "up-t" : "down-t"}">${isUp ? "▲" : "▼"} ${fmt(Math.abs(x.d))}</span>`,
+        text: q === null ? `New this month: ${fmt(cc[x.c] || 0)} so far` : `${isUp ? "Up" : "Down"} ${Math.abs(q)}% vs the same days last month` }); };
+    if(up.d > 0) show(up, true);
+    if(down.d < 0 && down.c !== up.c) show(down, false);
+  }
+
+  // 4. Top category share
+  const topCat = Object.keys(cc).sort((a, b) => cc[b] - cc[a])[0];
+  if(topCat && curT > 0){ const c = catMap[topCat] || catMap.Other;
+    tiles.push({ icon:"🥇", accent:c.color, value:`${esc(topCat)} is ${Math.round(cc[topCat] / curT * 100)}%`, text:`Your biggest category this month at ${fmt(cc[topCat])}` }); }
+
+  // 5. Largest single expense
+  if(cur.length){ const big = cur.reduce((a, b) => b.amount > a.amount ? b : a);
+    tiles.push({ icon:"💸", accent:(catMap[big.category] || catMap.Other).color, value:`${fmt(big.amount)} · ${esc(big.title)}`,
+      text:`Largest expense this month, on ${big._date.toLocaleDateString("en-US",{month:"short",day:"numeric"})}` }); }
+
+  // 6. Recurring share
+  const rec = sum(cur.filter(e => e.recurringId));
+  if(rec > 0 && curT > 0) tiles.push({ icon:"🔁", accent:"#00c9a7", value:`${Math.round(rec / curT * 100)}% recurring`,
+    text:`${fmt(rec)} of this month's spending came from recurring expenses` });
+
+  // 7. Daily average
+  if(curT > 0) tiles.push({ icon:"📅", accent:"#ff9f43", value:`${fmt(curT / day)} per day`,
+    text: prevT > 0 ? `vs ${fmt(prevT / prevDays)} per day last month` : `Average over the first ${day} day${day === 1 ? "" : "s"} of ${MONTHS[m]}` });
+
+  $("insights").innerHTML = tiles.slice(0, 6).map(t => `<div class="ins" style="--accent:${t.accent}">
+    <div class="ii">${t.icon}</div><div><div class="iv">${t.value}</div><div class="it">${t.text}</div></div></div>`).join("");
+}
 
 function renderStats(){
   const now = new Date();
