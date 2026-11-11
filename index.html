@@ -197,6 +197,12 @@
   .q-btn .btn-primary{width:auto;white-space:nowrap;padding:12px 28px}
   @media(max-width:900px){.qgrid{grid-template-columns:1fr 1fr}.q-desc{grid-column:1/-1}.q-btn{width:100%}.q-btn .btn-primary{flex:1}}
   #repeatRow[hidden]{display:none}
+  .q-note{margin:12px 0 0}
+  .tags{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}
+  .tag{font:inherit;font-size:.68rem;font-weight:600;border:none;cursor:pointer;padding:2px 8px;border-radius:999px;background:rgba(136,84,208,.14);color:#8854d0}
+  :root[data-theme="dark"] .tag{background:rgba(165,124,255,.18);color:#c3a6ff}
+  .tag:hover{background:rgba(136,84,208,.26)}
+  .item .note{font-size:.75rem;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .charts .chart-box{height:320px}
   .user{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.18);padding:4px 6px 4px 4px;border-radius:999px;font-size:.82rem}
   .user img{width:28px;height:28px;border-radius:50%;background:var(--surface)}
@@ -282,6 +288,10 @@
             <option value="">Never</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option><option value="yearly">Yearly</option>
           </select>
         </div>
+      </div>
+      <div class="row q-note">
+        <label for="fNote">Note <span style="font-weight:400">(optional · add #tags like #vacation or #work)</span></label>
+        <input id="fNote" maxlength="200" placeholder="e.g. Team lunch for Q4 kickoff #work" />
       </div>
       <div class="q-bottom">
         <div class="row q-cats">
@@ -597,6 +607,7 @@ async function processRecurring(){
       while(next <= today && n < 100){
         batch.set(expensesRef.doc(`rec_${r.id}_${next}`), {
           title:r.title, amount:r.amount, date:next, category:r.category, payment:r.payment,
+          ...(r.note ? { note:r.note } : {}), ...(r.tags && r.tags.length ? { tags:r.tags } : {}),
           recurringId:r.id, createdAt:TS()
         });
         next = advanceDate(r, next); n++;
@@ -718,13 +729,17 @@ $("expForm").addEventListener("submit", async e => {
     category: selectedCat,
     payment: $("fPay").value
   };
+  const note = $("fNote").value.trim().slice(0, 200), tags = parseTags(note);
+  if(note) data.note = note;
+  if(tags.length) data.tags = tags;
   if(!data.title || !(data.amount>0) || !data.date) return toast("Please fill all fields");
   const repeat = $("fRepeat").value;
   // Writes apply locally right away (and sync later when offline), so don't block the UI on the server
   const fail = err => { console.error(err); toast("Error: " + err.message); };
   try{
     if(editingId){
-      expensesRef.doc(editingId).update({ ...data, updatedAt: TS() }).catch(fail);
+      const del = firebase.firestore.FieldValue.delete();
+      expensesRef.doc(editingId).update({ note: del, tags: del, ...data, updatedAt: TS() }).catch(fail);
       toast("✏️ Expense updated");
     }else if(repeat){
       // Create the rule; processRecurring() adds this and future occurrences when they're due
@@ -757,7 +772,7 @@ $("list").addEventListener("click", async e => {
   const id = btn.dataset.id; const exp = expenses.find(x=>x.id===id); if(!exp) return;
   if(btn.dataset.act==="edit"){
     editingId = id;
-    $("fTitle").value = exp.title; $("fAmount").value = exp.amount; $("fDate").value = exp.date;
+    $("fTitle").value = exp.title; $("fAmount").value = exp.amount; $("fDate").value = exp.date; $("fNote").value = exp.note || "";
     $("fPay").value = exp.payment || "Card"; selectedCat = exp.category in catMap ? exp.category : "Other"; renderChips();
     $("formTitle").textContent = "✏️ Edit Expense"; $("submitBtn").textContent = "Save Changes";
     $("cancelEdit").hidden = false; $("repeatRow").hidden = true; window.scrollTo({top:0,behavior:"smooth"});
@@ -856,22 +871,41 @@ function renderCharts(){
 }
 
 function esc(s){ return String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
-function renderList(){
+// #tags: letters, numbers, _ and -, up to 24 chars; at most 10 per expense
+function parseTags(text){
+  const out = []; const re = /#([\p{L}\p{N}_-]{1,24})/gu; let m;
+  while((m = re.exec(text || "")) && out.length < 10){ const t = m[1].toLowerCase(); if(!out.includes(t)) out.push(t); }
+  return out;
+}
+// Shared by the list and "Export → Current list". "#tag" searches tags; anything else searches title, note and tags.
+function matchesFilter(e){
   const q = $("search").value.trim().toLowerCase(); const cf = $("catFilter").value;
-  const rows = expenses.filter(e => (!cf || e.category===cf) && (!q || (e.title||"").toLowerCase().includes(q)));
+  if(cf && e.category !== cf) return false;
+  if(!q) return true;
+  if(q.startsWith("#") && q.length > 1) return (e.tags || []).some(t => t.startsWith(q.slice(1)));
+  return (e.title || "").toLowerCase().includes(q) || (e.note || "").toLowerCase().includes(q) || (e.tags || []).some(t => t.includes(q));
+}
+function renderList(){
+  const rows = expenses.filter(matchesFilter);
   if(!rows.length){ $("list").innerHTML = `<div class="empty">${expenses.length?"No matching expenses":"No expenses yet — add your first one! 🎉"}</div>`; return; }
   $("list").innerHTML = rows.map(e => {
     const c = catMap[e.category] || catMap.Other;
     return `<div class="item" style="border-left-color:${c.color}">
       <div class="ic" style="background:${c.color}22">${c.icon}</div>
       <div class="info"><div class="title">${esc(e.title)}</div>
-        <div class="meta">${esc(e.category)} · ${e._date.toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"})} · ${esc(e.payment||"")}${e.recurringId ? " · 🔁" : ""}</div></div>
+        <div class="meta">${esc(e.category)} · ${e._date.toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"})} · ${esc(e.payment||"")}${e.recurringId ? " · 🔁" : ""}</div>
+        ${e.note ? `<div class="note" title="${esc(e.note)}">${esc(e.note.replace(/#[\p{L}\p{N}_-]+/gu, "").replace(/\s+/g, " ").trim())}</div>` : ""}
+        ${(e.tags||[]).length ? `<div class="tags">${e.tags.map(t => `<button class="tag" data-tag="${esc(t)}" title="Show #${esc(t)}">#${esc(t)}</button>`).join("")}</div>` : ""}</div>
       <div class="amt" style="color:${c.color}">${fmt(e.amount)}</div>
       <div class="ops"><button data-act="edit" data-id="${e.id}" title="Edit">✏️</button><button data-act="del" data-id="${e.id}" title="Delete">🗑️</button></div>
     </div>`;
   }).join("");
 }
 $("search").addEventListener("input", renderList);
+$("list").addEventListener("click", e => {
+  const t = e.target.closest(".tag"); if(!t) return;
+  e.stopPropagation(); $("search").value = "#" + t.dataset.tag; renderList();
+});
 $("catFilter").addEventListener("change", renderList);
 
 /* ---------------- Export (Excel / CSV / PDF) ---------------- */
@@ -894,10 +928,7 @@ function exportRows(){
   let rows;
   if(range === "all") rows = expenses.slice();
   else if(range === "period") rows = expenses.filter(e => inRange(e, periodRange(period, anchor)));
-  else {
-    const q = $("search").value.trim().toLowerCase(); const cf = $("catFilter").value;
-    rows = expenses.filter(e => (!cf || e.category===cf) && (!q || (e.title||"").toLowerCase().includes(q)));
-  }
+  else rows = expenses.filter(matchesFilter);
   return rows.sort((a,b) => a.date < b.date ? 1 : a.date > b.date ? -1 : 0);
 }
 function rangeText(){
@@ -909,8 +940,13 @@ function rangeText(){
   if($("search").value.trim()) parts.push(`Search: "${$("search").value.trim()}"`);
   return parts.length ? parts.join(" · ") : "All expenses";
 }
-const HEAD = ["Date","Description","Category","Payment","Amount (USD)"];
-const toRow = e => [e.date, e.title || "", e.category || "", e.payment || "", Math.round(e.amount*100)/100];
+const HEAD = ["Date","Description","Category","Payment","Note","Tags","Amount (USD)"];
+const AMT = HEAD.length - 1;                                   // amount is always the last column
+const AMT_COL = String.fromCharCode(65 + AMT);                 // its spreadsheet letter (G)
+const toRow = e => [e.date, e.title || "", e.category || "", e.payment || "",
+  (e.note || "").replace(/#[\p{L}\p{N}_-]+/gu, "").replace(/\s+/g, " ").trim(), (e.tags || []).map(t => "#" + t).join(" "),
+  Math.round(e.amount*100)/100];
+const totalRow = v => { const r = Array(HEAD.length).fill(""); r[AMT - 1] = "Total"; r[AMT] = v; return r; };
 const fileBase = () => `spendly-expenses-${toKey(new Date())}`;
 
 function download(blob, name){
@@ -922,18 +958,18 @@ const safeCell = v => typeof v === "string" && /^[=+\-@\t\r]/.test(v) ? "'" + v 
 
 function exportCSV(rows){
   const esc = v => { v = String(safeCell(v)); return /[",\n\r]/.test(v) ? `"${v.replace(/"/g,'""')}"` : v; };
-  const lines = [HEAD, ...rows.map(toRow), ["","","","Total", sum(rows).toFixed(2)]].map(r => r.map(esc).join(","));
+  const lines = [HEAD, ...rows.map(toRow), totalRow(sum(rows).toFixed(2))].map(r => r.map(esc).join(","));
   download(new Blob(["﻿" + lines.join("\r\n")], {type:"text/csv;charset=utf-8"}), fileBase() + ".csv");
 }
 
 async function exportXLSX(rows){
   await loadScript(LIBS.xlsx);
   const data = [HEAD, ...rows.map(toRow)];   // SheetJS stores these as plain text cells, never formulas
-  data.push([], ["","","","Total", Math.round(sum(rows)*100)/100]);
+  data.push([], totalRow(Math.round(sum(rows)*100)/100));
   const ws = XLSX.utils.aoa_to_sheet(data);
-  ws["!cols"] = [{wch:12},{wch:36},{wch:16},{wch:16},{wch:14}];
-  for(let i = 2; i <= rows.length + 3; i++){ const c = ws["E"+i]; if(c && typeof c.v === "number") c.z = '"$"#,##0.00'; }
-  ws["!autofilter"] = { ref: `A1:E${rows.length + 1}` };
+  ws["!cols"] = [{wch:12},{wch:32},{wch:15},{wch:14},{wch:30},{wch:20},{wch:14}];
+  for(let i = 2; i <= rows.length + 3; i++){ const c = ws[AMT_COL+i]; if(c && typeof c.v === "number") c.z = '"$"#,##0.00'; }
+  ws["!autofilter"] = { ref: `A1:${AMT_COL}${rows.length + 1}` };
 
   // Second sheet: totals by category
   const byCat = {}; rows.forEach(e => byCat[e.category] = (byCat[e.category]||0) + e.amount);
@@ -970,13 +1006,13 @@ async function exportPDF(rows){
   doc.autoTable({
     startY: 126,
     head: [HEAD],
-    body: rows.map(e => { const r = toRow(e); r[4] = fmt(r[4]); return r; }),
-    foot: [["","","","Total", fmt(sum(rows))]],
-    styles: { fontSize: 9, cellPadding: 5 },
+    body: rows.map(e => { const r = toRow(e); r[AMT] = fmt(r[AMT]); return r; }),
+    foot: [totalRow(fmt(sum(rows)))],
+    styles: { fontSize: 8, cellPadding: 4 },
     headStyles: { fillColor: [46,134,222], textColor: 255 },
     footStyles: { fillColor: [238,240,251], textColor: 30, fontStyle: "bold" },
     alternateRowStyles: { fillColor: [248,249,254] },
-    columnStyles: { 0:{cellWidth:70}, 4:{halign:"right", cellWidth:85} },
+    columnStyles: { 0:{cellWidth:62}, 4:{cellWidth:110}, 5:{cellWidth:70}, [AMT]:{halign:"right", cellWidth:70} },
     didParseCell: d => {
       if(d.section === "body" && d.column.index === 2){
         const c = catMap[d.cell.raw]; if(c){ const h = c.color.slice(1); d.cell.styles.textColor = [parseInt(h.slice(0,2),16),parseInt(h.slice(2,4),16),parseInt(h.slice(4,6),16)]; d.cell.styles.fontStyle = "bold"; }
