@@ -6,15 +6,16 @@ service cloud.firestore {
       return request.auth != null && request.auth.uid == uid;
     }
 
-    // Optional note (up to 200 chars) and #tags (up to 10)
+    // Optional note (up to 200 chars), #tags (up to 10) and type (income; missing means expense)
     function validExtras(d) {
       return (!('note' in d) || (d.note is string && d.note.size() <= 200))
-        && (!('tags' in d) || (d.tags is list && d.tags.size() <= 10));
+        && (!('tags' in d) || (d.tags is list && d.tags.size() <= 10))
+        && (!('type' in d) || d.type in ['expense','income']);
     }
 
     function validExpense() {
       let d = request.resource.data;
-      return d.keys().hasOnly(['title','amount','date','category','payment','note','tags','recurringId','createdAt','updatedAt'])
+      return d.keys().hasOnly(['title','amount','date','category','payment','note','tags','type','recurringId','createdAt','updatedAt'])
         && validExtras(d)
         && d.title is string && d.title.size() > 0 && d.title.size() <= 80
         && d.amount is number && d.amount > 0 && d.amount < 1000000
@@ -26,7 +27,7 @@ service cloud.firestore {
 
     function validRecurring() {
       let d = request.resource.data;
-      return d.keys().hasOnly(['title','amount','category','payment','note','tags','frequency','anchorDay','startDate','nextDate','active','createdAt','updatedAt'])
+      return d.keys().hasOnly(['title','amount','category','payment','note','tags','type','frequency','anchorDay','startDate','nextDate','active','createdAt','updatedAt'])
         && validExtras(d)
         && d.title is string && d.title.size() > 0 && d.title.size() <= 80
         && d.amount is number && d.amount > 0 && d.amount < 1000000
