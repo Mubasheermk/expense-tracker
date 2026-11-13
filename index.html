@@ -197,6 +197,30 @@
   .q-btn .btn-primary{width:auto;white-space:nowrap;padding:12px 28px}
   @media(max-width:900px){.qgrid{grid-template-columns:1fr 1fr}.q-desc{grid-column:1/-1}.q-btn{width:100%}.q-btn .btn-primary{flex:1}}
   #repeatRow[hidden]{display:none}
+  .date-custom{display:inline-flex;align-items:center;gap:4px}
+  .date-custom[hidden]{display:none}
+  .date-custom input{width:auto;padding:7px 8px;font-size:.8rem}
+  .list-summary{font-size:.8rem;color:var(--muted);margin:-4px 0 10px}
+  .list-summary b{color:var(--text)}
+  .link-btn{font:inherit;border:none;background:none;color:#8854d0;font-weight:600;cursor:pointer;padding:0;text-decoration:underline}
+  .cal{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
+  .cal .dow{font-size:.7rem;font-weight:600;color:var(--muted);text-align:center;padding-bottom:2px}
+  .cal .day{position:relative;min-height:62px;border-radius:10px;padding:6px 7px;cursor:pointer;border:2px solid transparent;
+    background:color-mix(in srgb, #ff4d8d calc(var(--a,0) * 100%), var(--surface));transition:transform .1s}
+  .cal .day:hover{transform:translateY(-1px);border-color:#8854d055}
+  .cal .day.empty-d{background:transparent;cursor:default}
+  .cal .day.today{border-color:#8854d0}
+  .cal .day.sel{border-color:#ff4d8d;box-shadow:0 0 0 2px #ff4d8d55}
+  .cal .day.future{opacity:.55}
+  .cal .dn{font-size:.72rem;font-weight:600;color:var(--muted)}
+  .cal .day.hot .dn,.cal .day.hot .da{color:#fff}
+  .cal .da{font-size:.78rem;font-weight:700;margin-top:6px;color:var(--text)}
+  .cal .inc-dot,.cal-legend .inc-dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:#10ac84}
+  .cal .day .inc-dot{position:absolute;top:7px;right:7px}
+  .cal-legend{display:flex;align-items:center;gap:4px;flex-wrap:wrap;font-size:.72rem;color:var(--muted);margin-top:10px}
+  .cal-legend i{width:14px;height:14px;border-radius:4px;background:color-mix(in srgb, #ff4d8d calc(var(--a) * 100%), var(--surface))}
+  .cal-legend .cal-key{margin-left:auto;display:inline-flex;align-items:center;gap:5px}
+  @media(max-width:600px){.cal{gap:3px}.cal .day{min-height:44px;padding:4px}.cal .da{font-size:.62rem;margin-top:3px}.cal-legend .cal-key{margin-left:0}}
   .goals{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px}
   .goal{display:flex;gap:14px;align-items:center;padding:14px;border-radius:14px;background:var(--surface)}
   .ring{position:relative;width:76px;height:76px;flex:0 0 auto}
@@ -456,6 +480,22 @@
     </div>
   </div>
 
+  <!-- Calendar -->
+  <div class="card mt">
+    <div class="card-head">
+      <h2>📅 Calendar <span class="sub-h" id="calSub"></span></h2>
+      <div class="nav">
+        <button type="button" id="calPrev" aria-label="Previous month">‹</button>
+        <span id="calLabel" style="min-width:96px;text-align:center"></span>
+        <button type="button" id="calNext" aria-label="Next month">›</button>
+        <button type="button" id="calToday" style="width:auto;padding:0 10px;font-size:.78rem">Today</button>
+      </div>
+    </div>
+    <div class="cal" id="cal"></div>
+    <div class="cal-legend"><span>Less</span><i style="--a:.08"></i><i style="--a:.3"></i><i style="--a:.55"></i><i style="--a:.8"></i><i style="--a:1"></i><span>More</span>
+      <span class="cal-key"><b class="inc-dot"></b> income · click a day to see its transactions</span></div>
+  </div>
+
   <!-- List -->
   <div class="card mt">
     <div class="list-head">
@@ -463,6 +503,18 @@
       <div class="filters">
         <input id="search" placeholder="🔍 Search…" />
         <select id="catFilter"><option value="">All categories</option></select>
+        <select id="dateRange" title="Date range">
+          <option value="">📅 All dates</option>
+          <option value="this-month">This month</option>
+          <option value="last-month">Last month</option>
+          <option value="last-30">Last 30 days</option>
+          <option value="this-year">This year</option>
+          <option value="last-year">Last year</option>
+          <option value="custom">Custom range…</option>
+        </select>
+        <span class="date-custom" id="dateCustom" hidden>
+          <input type="date" id="dFrom" aria-label="From date" /> <span>–</span> <input type="date" id="dTo" aria-label="To date" />
+        </span>
         <button type="button" class="export-btn import-btn" id="importBtn" title="Import a bank or card statement (CSV or Excel)">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5"/><path d="M12 3v12"/></svg>
           Import
@@ -486,6 +538,7 @@
         </div>
       </div>
     </div>
+    <div class="list-summary" id="listSummary"></div>
     <div class="list" id="list"><div class="empty">Loading…</div></div>
   </div>
 </div>
@@ -1483,7 +1536,45 @@ $("list").addEventListener("click", async e => {
 });
 
 /* ---------------- Rendering ---------------- */
-function renderAll(){ renderStats(); renderCashflow(); renderCharts(); renderList(); renderBudgets(); renderInsights(); }
+function renderAll(){ renderStats(); renderCashflow(); renderCharts(); renderList(); renderBudgets(); renderInsights(); renderCalendar(); }
+
+/* ---------------- Calendar heatmap ---------------- */
+let calMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+const compact = n => n >= 1000 ? "$" + (n / 1000).toFixed(n >= 10000 ? 0 : 1) + "k" : "$" + Math.round(n);
+function renderCalendar(){
+  const y = calMonth.getFullYear(), m = calMonth.getMonth(), dim = daysIn(y, m), todayK = toKey(new Date());
+  $("calLabel").textContent = `${MONTHS[m]} ${y}`;
+  const out = {}, inn = {};
+  expenses.forEach(e => { if(e._date.getFullYear() === y && e._date.getMonth() === m) out[e.date] = (out[e.date] || 0) + e.amount; });
+  incomes.forEach(e => { if(e._date.getFullYear() === y && e._date.getMonth() === m) inn[e.date] = (inn[e.date] || 0) + e.amount; });
+  const vals = Object.values(out), max = Math.max(...vals, 0), total = vals.reduce((a, b) => a + b, 0);
+  const spendDays = vals.filter(v => v > 0).length;
+  $("calSub").textContent = total ? `· ${fmt(total)} over ${spendDays} day${spendDays === 1 ? "" : "s"} · ${dim - spendDays} no-spend day${dim - spendDays === 1 ? "" : "s"}` : "· no spending recorded";
+  const dr = dateFilter(), selDay = dr && dr[0] === dr[1] ? dr[0] : null;
+  let html = DOW.map(d => `<div class="dow">${d}</div>`).join("");
+  const lead = (new Date(y, m, 1).getDay() + 6) % 7;             // Monday-first grid
+  for(let i = 0; i < lead; i++) html += `<div class="day empty-d"></div>`;
+  for(let d = 1; d <= dim; d++){
+    const k = toKey(new Date(y, m, d)), v = out[k] || 0;
+    // Square-root scale so one big day (like rent) doesn't wash out the rest
+    const a = v > 0 ? Math.max(0.08, Math.sqrt(v / max)) : 0;
+    const tip = `${parseKey(k).toLocaleDateString("en-US",{weekday:"short",month:"short",day:"numeric"})}: ${fmt(v)} spent${inn[k] ? ` · +${fmt(inn[k])} income` : ""}`;
+    html += `<div class="day ${k === todayK ? "today" : ""} ${k === selDay ? "sel" : ""} ${k > todayK ? "future" : ""} ${a > 0.55 ? "hot" : ""}" data-day="${k}" style="--a:${a.toFixed(2)}" title="${tip}">
+      <div class="dn">${d}</div>${v ? `<div class="da">${compact(v)}</div>` : ""}${inn[k] ? `<b class="inc-dot"></b>` : ""}</div>`;
+  }
+  $("cal").innerHTML = html;
+}
+$("cal").addEventListener("click", e => {
+  const d = e.target.closest("[data-day]"); if(!d) return;
+  const k = d.dataset.day, dr = dateFilter();
+  if(dr && dr[0] === k && dr[1] === k){ $("dateRange").value = ""; $("dateCustom").hidden = true; }   // click again to clear
+  else { $("dateRange").value = "custom"; $("dFrom").value = k; $("dTo").value = k; $("dateCustom").hidden = false; }
+  renderList(); renderCalendar();
+  if($("dateRange").value) $("list").scrollIntoView({ behavior:"smooth", block:"center" });
+});
+$("calPrev").addEventListener("click", () => { calMonth = new Date(calMonth.getFullYear(), calMonth.getMonth() - 1, 1); renderCalendar(); });
+$("calNext").addEventListener("click", () => { calMonth = new Date(calMonth.getFullYear(), calMonth.getMonth() + 1, 1); renderCalendar(); });
+$("calToday").addEventListener("click", () => { const n = new Date(); calMonth = new Date(n.getFullYear(), n.getMonth(), 1); renderCalendar(); });
 
 /* ---------------- Cash flow ---------------- */
 function renderCashflow(){
@@ -1675,8 +1766,25 @@ function parseTags(text){
   return out;
 }
 // Shared by the list and "Export → Current list". "#tag" searches tags; anything else searches title, note and tags.
+// Selected date range for Transactions as [fromKey, toKey] (inclusive), or null for all dates
+function dateFilter(){
+  const v = $("dateRange").value, now = new Date(), y = now.getFullYear(), m = now.getMonth();
+  if(v === "this-month") return [toKey(new Date(y, m, 1)), toKey(new Date(y, m + 1, 0))];
+  if(v === "last-month") return [toKey(new Date(y, m - 1, 1)), toKey(new Date(y, m, 0))];
+  if(v === "last-30")    return [toKey(addDays(startOfDay(now), -29)), toKey(now)];
+  if(v === "this-year")  return [`${y}-01-01`, `${y}-12-31`];
+  if(v === "last-year")  return [`${y - 1}-01-01`, `${y - 1}-12-31`];
+  if(v === "custom"){ const f = $("dFrom").value || "0000-01-01", t = $("dTo").value || "9999-12-31"; return f <= t ? [f, t] : [t, f]; }
+  return null;
+}
+function dateFilterText(){
+  const r = dateFilter(); if(!r) return "";
+  const nice = k => /^0000|^9999/.test(k) ? "…" : parseKey(k).toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"});
+  return r[0] === r[1] ? nice(r[0]) : `${nice(r[0])} – ${nice(r[1])}`;
+}
 function matchesFilter(e){
   const q = $("search").value.trim().toLowerCase(); const cf = $("catFilter").value;
+  const dr = dateFilter(); if(dr && (e.date < dr[0] || e.date > dr[1])) return false;
   if(cf === "__income" && !isIncome(e)) return false;
   if(cf === "__expense" && isIncome(e)) return false;
   if(cf && !cf.startsWith("__") && e.category !== cf) return false;
@@ -1686,6 +1794,10 @@ function matchesFilter(e){
 }
 function renderList(){
   const rows = allRecords.filter(matchesFilter);
+  const filtered = !!($("search").value.trim() || $("catFilter").value || $("dateRange").value), outT = sum(rows.filter(e => !isIncome(e))), inT = sum(rows.filter(isIncome));
+  $("listSummary").innerHTML = filtered
+    ? `Showing <b>${rows.length}</b> of ${allRecords.length}${dateFilter() ? ` · ${dateFilterText()}` : ""} · <b>${fmt(outT)}</b> spent${inT ? ` · <b class="down-t">+${fmt(inT)}</b> income` : ""} · <button type="button" class="link-btn" id="clearFilters">Clear filters</button>`
+    : "";
   if(!rows.length){ $("list").innerHTML = `<div class="empty">${allRecords.length?"Nothing matches this search":"No expenses yet — add your first one! 🎉"}</div>`; return; }
   $("list").innerHTML = rows.map(e => {
     const c = catMap[e.category] || catMap.Other;
@@ -1701,11 +1813,21 @@ function renderList(){
   }).join("");
 }
 $("search").addEventListener("input", renderList);
+$("listSummary").addEventListener("click", e => {
+  if(e.target.id !== "clearFilters") return;
+  $("search").value = ""; $("catFilter").value = ""; $("dateRange").value = ""; $("dateCustom").hidden = true; renderList(); renderCalendar();
+});
 $("list").addEventListener("click", e => {
   const t = e.target.closest(".tag"); if(!t) return;
   e.stopPropagation(); $("search").value = "#" + t.dataset.tag; renderList();
 });
 $("catFilter").addEventListener("change", renderList);
+$("dateRange").addEventListener("change", () => {
+  $("dateCustom").hidden = $("dateRange").value !== "custom";
+  if($("dateRange").value === "custom" && !$("dFrom").value){ const t = toKey(new Date()); $("dFrom").value = t.slice(0, 8) + "01"; $("dTo").value = t; }
+  renderList();
+});
+["dFrom","dTo"].forEach(id => $(id).addEventListener("change", renderList));
 
 /* ---------------- Export (Excel / CSV / PDF) ---------------- */
 const LIBS = {
@@ -1732,10 +1854,11 @@ function exportRows(){
 }
 function rangeText(){
   const r = $("exportRange").value;
-  if(r === "all") return "All expenses";
+  if(r === "all") return "Everything";
   if(r === "period") return `${period[0].toUpperCase()+period.slice(1)}: ${rangeLabel()}`;
-  const parts = [];
-  if($("catFilter").value) parts.push(`Category: ${$("catFilter").value}`);
+  const parts = [], cf = $("catFilter").value;
+  if(dateFilter()) parts.push(dateFilterText());
+  if(cf) parts.push(cf === "__income" ? "Income only" : cf === "__expense" ? "Expenses only" : `Category: ${cf}`);
   if($("search").value.trim()) parts.push(`Search: "${$("search").value.trim()}"`);
   return parts.length ? parts.join(" · ") : "All expenses";
 }
@@ -1806,10 +1929,55 @@ async function exportPDF(rows){
   doc.text(`Range: ${rangeText()}`, 40, 95);
   doc.setFont("helvetica","bold");
   const pOut = sum(rows.filter(e => !isIncome(e))), pIn = sum(rows.filter(isIncome));
-  doc.text(`Spent: ${fmt(pOut)}${pIn ? `   ·   Income: ${fmt(pIn)}   ·   Net: ${pIn - pOut >= 0 ? "+" : "-"}${fmt(Math.abs(pIn - pOut))}` : ""}   ·   ${rows.length} record${rows.length===1?"":"s"}`, 40, 112);
+  // Summary tiles
+  const net = pIn - pOut, dates = rows.map(e => e.date).sort();
+  const spanDays = dates.length ? Math.round((parseKey(dates[dates.length - 1]) - parseKey(dates[0])) / 86400000) + 1 : 1;
+  const biggest = rows.filter(e => !isIncome(e)).reduce((a, b) => (!a || b.amount > a.amount) ? b : a, null);
+  const tiles = pIn
+    ? [["Spent", fmt(pOut), [231,76,60]], ["Income", fmt(pIn), [16,172,132]], ["Net", (net >= 0 ? "+" : "-") + fmt(Math.abs(net)), net >= 0 ? [16,172,132] : [231,76,60]], ["Records", String(rows.length), [46,134,222]]]
+    : [["Spent", fmt(pOut), [231,76,60]], ["Daily average", fmt(pOut / spanDays), [136,84,208]], ["Largest expense", biggest ? fmt(biggest.amount) : "—", [255,159,67]], ["Records", String(rows.length), [46,134,222]]];
+  const tw = (W - 80 - 30) / 4;
+  tiles.forEach(([label, value, col], i) => {
+    const x = 40 + i * (tw + 10);
+    doc.setFillColor(246,247,252); doc.roundedRect(x, 106, tw, 50, 6, 6, "F");
+    doc.setFillColor(...col); doc.rect(x, 106, 4, 50, "F");
+    doc.setFont("helvetica","normal"); doc.setFontSize(9); doc.setTextColor(110); doc.text(label, x + 12, 124);
+    doc.setFont("helvetica","bold"); doc.setFontSize(14); doc.setTextColor(...col); doc.text(value, x + 12, 145);
+  });
+  doc.setFont("helvetica","normal"); doc.setFontSize(9); doc.setTextColor(120);
+  if(dates.length) doc.text(`${parseKey(dates[0]).toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"})} – ${parseKey(dates[dates.length-1]).toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"})}`, W - 40, 95, { align:"right" });
+
+  // Charts (rendered off-screen in light colors)
+  let y = 172;
+  const spendRows = rows.filter(e => !isIncome(e));
+  if(rows.length && typeof Chart !== "undefined"){
+    const imgs = await reportCharts(rows, dates);
+    if(imgs.bar){ doc.setFont("helvetica","bold"); doc.setFontSize(11); doc.setTextColor(40); doc.text(imgs.barTitle, 40, y); doc.addImage(imgs.bar, "PNG", 40, y + 6, W - 80, (W - 80) * 0.36); y += 6 + (W - 80) * 0.36 + 18; }
+    if(imgs.pie){
+      doc.setFont("helvetica","bold"); doc.setFontSize(11); doc.setTextColor(40); doc.text("Spending by category", 40, y);
+      doc.addImage(imgs.pie, "PNG", 40, y + 6, 190, 190);
+      // Category summary table next to the pie
+      const byCat = {}; spendRows.forEach(e => { const b = byCat[e.category] ||= { n:0, t:0 }; b.n++; b.t += e.amount; });
+      const cats = Object.keys(byCat).sort((a, b) => byCat[b].t - byCat[a].t);
+      doc.autoTable({
+        startY: y + 6, margin: { left: 250, right: 40 },
+        head: [["Category", "Count", "Total", "Share"]],
+        body: cats.map(c => [c, byCat[c].n, fmt(byCat[c].t), Math.round(byCat[c].t / pOut * 100) + "%"]),
+        foot: [["Total", spendRows.length, fmt(pOut), "100%"]],
+        styles: { fontSize: 8.5, cellPadding: 4 }, headStyles: { fillColor: [136,84,208], textColor: 255 },
+        footStyles: { fillColor: [238,240,251], textColor: 30, fontStyle: "bold" },
+        columnStyles: { 1:{halign:"right"}, 2:{halign:"right"}, 3:{halign:"right"} },
+        didParseCell: d => { if(d.section === "body" && d.column.index === 0){ const c = catMap[d.cell.raw]; if(c){ d.cell.styles.textColor = pdfColor(c.color); d.cell.styles.fontStyle = "bold"; } } }
+      });
+      y = Math.max(y + 6 + 190, doc.lastAutoTable.finalY) + 20;
+    }
+  }
+  // Transactions start on a new page when there were charts
+  if(y > 172){ doc.addPage(); y = 40; }
+  doc.setFont("helvetica","bold"); doc.setFontSize(11); doc.setTextColor(40); doc.text("Transactions", 40, y);
 
   doc.autoTable({
-    startY: 126,
+    startY: y + 8,
     head: [HEAD],
     body: rows.map(e => { const r = toRow(e); r[AMT] = (isIncome(e) ? "+" : "") + fmt(r[AMT]); return r; }),
     foot: totalRows(rows, fmt),
@@ -1820,16 +1988,70 @@ async function exportPDF(rows){
     columnStyles: { 0:{cellWidth:58}, 1:{cellWidth:44}, 5:{cellWidth:96}, 6:{cellWidth:62}, [AMT]:{halign:"right", cellWidth:66} },
     didParseCell: d => {
       if(d.section === "body" && d.column.index === 3){
-        const c = catMap[d.cell.raw]; if(c){ const h = c.color.slice(1); d.cell.styles.textColor = [parseInt(h.slice(0,2),16),parseInt(h.slice(2,4),16),parseInt(h.slice(4,6),16)]; d.cell.styles.fontStyle = "bold"; }
+        const c = catMap[d.cell.raw]; if(c){ d.cell.styles.textColor = pdfColor(c.color); d.cell.styles.fontStyle = "bold"; }
       }
     },
-    didDrawPage: () => {
-      const H = doc.internal.pageSize.getHeight();
-      doc.setFontSize(8); doc.setTextColor(150);
-      doc.text(`Page ${doc.internal.getNumberOfPages()}`, W - 70, H - 20);
-    }
   });
+  // Page numbers on every page
+  const pages = doc.internal.getNumberOfPages(), H = doc.internal.pageSize.getHeight();
+  for(let i = 1; i <= pages; i++){ doc.setPage(i); doc.setFont("helvetica","normal"); doc.setFontSize(8); doc.setTextColor(150);
+    doc.text(`Spendly report · Page ${i} of ${pages}`, W - 40, H - 20, { align:"right" }); }
   doc.save(fileBase() + ".pdf");
+}
+
+// Category color as RGB for PDF text, darkened if it's too light to read on white
+function pdfColor(hex){
+  const h = (hex || "#778ca3").slice(1); let [r, g, b] = [0, 2, 4].map(i => parseInt(h.slice(i, i + 2), 16));
+  const lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  if(lum > 0.62){ const k = 0.62 / lum; r = Math.round(r * k); g = Math.round(g * k); b = Math.round(b * k); }
+  return [r, g, b];
+}
+
+// Draw the report charts on a hidden canvas and return them as PNG data URLs
+async function reportCharts(rows, dates){
+  const out = {}, spend = rows.filter(e => !isIncome(e)), inc = rows.filter(isIncome);
+  const make = async (w, h, cfg) => {
+    const cv = document.createElement("canvas"); cv.width = w; cv.height = h;
+    cv.style.cssText = "position:fixed;left:-9999px;top:0"; document.body.appendChild(cv);
+    const white = { id:"bg", beforeDraw: c => { const x = c.ctx; x.save(); x.fillStyle = "#fff"; x.fillRect(0, 0, c.width, c.height); x.restore(); } };
+    cfg.options = { ...(cfg.options || {}), responsive:false, animation:false, devicePixelRatio:2 };
+    cfg.plugins = [white];
+    const ch = new Chart(cv.getContext("2d"), cfg);
+    const url = ch.toBase64Image("image/png", 1); ch.destroy(); cv.remove(); return url;
+  };
+  const prevColor = Chart.defaults.color; Chart.defaults.color = "#555a7a";
+  try{
+    if(dates.length){
+      const first = parseKey(dates[0]), last = parseKey(dates[dates.length - 1]);
+      const days = Math.round((last - first) / 86400000) + 1;
+      let labels = [], keyOf;
+      if(days <= 62){
+        for(let d = new Date(first); d <= last; d = addDays(d, 1)) labels.push(toKey(d));
+        keyOf = e => e.date; out.barTitle = "Daily spending" + (inc.length ? " and income" : "");
+      } else {
+        for(let d = new Date(first.getFullYear(), first.getMonth(), 1); d <= last; d = new Date(d.getFullYear(), d.getMonth() + 1, 1)) labels.push(toKey(d).slice(0, 7));
+        keyOf = e => e.date.slice(0, 7); out.barTitle = "Monthly spending" + (inc.length ? " and income" : "");
+      }
+      const idx = Object.fromEntries(labels.map((l, i) => [l, i]));
+      const sv = labels.map(() => 0), iv = labels.map(() => 0);
+      spend.forEach(e => { const i = idx[keyOf(e)]; if(i !== undefined) sv[i] += e.amount; });
+      inc.forEach(e => { const i = idx[keyOf(e)]; if(i !== undefined) iv[i] += e.amount; });
+      const nice = l => l.length === 7 ? `${MONTHS[+l.slice(5) - 1]} ${l.slice(2, 4)}` : `${MONTHS[+l.slice(5, 7) - 1]} ${+l.slice(8)}`;
+      out.bar = await make(1000, 360, { type:"bar",
+        data:{ labels: labels.map(nice), datasets:[{ label:"Spent", data:sv, backgroundColor:"#8854d0", borderRadius:4 },
+          ...(inc.length ? [{ label:"Income", data:iv, backgroundColor:"#1dd1a1", borderRadius:4 }] : [])] },
+        options:{ plugins:{ legend:{ display: inc.length > 0, position:"top", align:"end" } },
+          scales:{ y:{ beginAtZero:true, ticks:{ callback:v => "$" + v }, grid:{ color:"#eef0fb" } }, x:{ grid:{ display:false } } } } });
+    }
+    if(spend.length){
+      const byCat = {}; spend.forEach(e => byCat[e.category] = (byCat[e.category] || 0) + e.amount);
+      const cats = Object.keys(byCat).sort((a, b) => byCat[b] - byCat[a]);
+      out.pie = await make(500, 500, { type:"doughnut",
+        data:{ labels:cats, datasets:[{ data:cats.map(c => byCat[c]), backgroundColor:cats.map(c => (catMap[c] || catMap.Other).color), borderColor:"#fff", borderWidth:3 }] },
+        options:{ cutout:"58%", plugins:{ legend:{ display:false } } } });
+    }
+  } finally { Chart.defaults.color = prevColor; }
+  return out;
 }
 
 $("exportBtn").addEventListener("click", e => {
