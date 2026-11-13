@@ -197,6 +197,14 @@
   .q-btn .btn-primary{width:auto;white-space:nowrap;padding:12px 28px}
   @media(max-width:900px){.qgrid{grid-template-columns:1fr 1fr}.q-desc{grid-column:1/-1}.q-btn{width:100%}.q-btn .btn-primary{flex:1}}
   #repeatRow[hidden]{display:none}
+  @media(max-width:600px){.card-head h2 .sub-h{display:block;margin-top:3px;font-size:.72rem}}
+  .sankey{width:100%;overflow:hidden}
+  .sankey svg{display:block;width:100%;height:auto}
+  .sankey .lk{transition:opacity .15s;cursor:pointer}
+  .sankey .lk:hover{opacity:.85!important}
+  .sankey .nd{cursor:pointer}
+  .sankey text{fill:var(--text);font-family:'Poppins',system-ui,sans-serif}
+  .sankey text.amt{fill:var(--muted)}
   .date-custom{display:inline-flex;align-items:center;gap:4px}
   .date-custom[hidden]{display:none}
   .date-custom input{width:auto;padding:7px 8px;font-size:.8rem}
@@ -433,6 +441,22 @@
   <div class="card" style="margin-bottom:20px">
     <div class="card-head"><h2>💵 Cash flow <span class="sub-h" id="cashSub"></span></h2></div>
     <div class="cashflow" id="cashflow"></div>
+  </div>
+
+  <!-- Money flow (Sankey) -->
+  <div class="card" style="margin-bottom:20px">
+    <div class="card-head">
+      <h2>🔀 Money flow <span class="sub-h" id="flowSub"></span></h2>
+      <select id="flowPeriod" style="width:auto;padding:7px 10px;font-size:.82rem">
+        <option value="this-month">This month</option>
+        <option value="last-month">Last month</option>
+        <option value="last-3">Last 3 months</option>
+        <option value="this-year">This year</option>
+        <option value="all">All time</option>
+      </select>
+    </div>
+    <div class="sankey" id="sankey"></div>
+    <div class="sub-h" id="flowHint" style="margin-top:6px"></div>
   </div>
 
   <!-- Savings goals -->
@@ -1536,7 +1560,115 @@ $("list").addEventListener("click", async e => {
 });
 
 /* ---------------- Rendering ---------------- */
-function renderAll(){ renderStats(); renderCashflow(); renderCharts(); renderList(); renderBudgets(); renderInsights(); renderCalendar(); }
+function renderAll(){ renderStats(); renderCashflow(); renderSankey(); renderCharts(); renderList(); renderBudgets(); renderInsights(); renderCalendar(); }
+
+/* ---------------- Money flow (Sankey) ---------------- */
+// Flow: income sources → total in → spending categories (+ Saved, or + From savings when overspent)
+function buildFlow(rows){
+  const out = rows.filter(e => !isIncome(e)), inc = rows.filter(isIncome);
+  const tIn = sum(inc), tOut = sum(out);
+  const group = (list, catsList) => {
+    const by = {}; list.forEach(e => by[e.category] = (by[e.category] || 0) + e.amount);
+    return Object.keys(by).map(n => ({ name:n, value:by[n], color:(catMap[n] || catMap.Other).color, icon:(catMap[n] || catMap.Other).icon, cat:n })).sort((a, b) => b.value - a.value);
+  };
+  let left = group(inc), right = group(out);
+  // Fold categories under 3% of spending into one "Other" node so labels stay readable
+  if(right.length > 6){
+    const small = right.filter((r, i) => i >= 5 && r.value / tOut < 0.03);
+    if(small.length > 1){ right = right.filter(r => !small.includes(r));
+      right.push({ name:`${small.length} more`, value:sum(small), color:"#a4b0be", icon:"📦", cat:null }); }
+  }
+  if(!tIn){ // no income: just show spending split
+    return { left:[{ name:"Spent", value:tOut, color:"#8854d0", icon:"💸" }], mid:null, right, total:tOut, tIn, tOut };
+  }
+  if(tIn > tOut) right.push({ name:"Saved", value:tIn - tOut, color:"#10ac84", icon:"🏦", saved:true });
+  if(tOut > tIn) left.push({ name:"From savings", value:tOut - tIn, color:"#e74c3c", icon:"⚠️", short:true });
+  return { left, mid:{ name:"Money in", value:Math.max(tIn, tOut) }, right, total:Math.max(tIn, tOut), tIn, tOut };
+}
+
+// Returns an SVG string. Three columns when there's income, two when there isn't.
+function sankeySVG(flow, W, o = {}){
+  const narrow = W < 620, fs = narrow ? 10.5 : 12.5, lineH = narrow ? 26 : 18, gap = lineH + 4, nodeW = 12;
+  const labW = narrow ? Math.min(118, W * 0.32) : Math.min(210, W * 0.26);
+  const cols = flow.mid ? [labW, (W - nodeW) / 2, W - labW - nodeW] : [labW, null, W - labW - nodeW];
+  const n = Math.max(flow.left.length, flow.right.length, 1);
+  const H = Math.max(narrow ? 220 : 260, n * (gap + 14) + 30), pad = 16;
+  const k = (H - pad * 2 - (n - 1) * gap) / Math.max(flow.total, 0.01);
+  const esc2 = t => esc(t);
+  const money = v => fmt(v).replace(".00", "");
+  const pct = v => flow.tIn ? Math.round(v / flow.tIn * 100) + "%" : Math.round(v / Math.max(flow.tOut, 0.01) * 100) + "%";
+  // Stack nodes in a column, centred vertically
+  const stack = (list) => {
+    const used = list.reduce((a, d) => a + d.value * k, 0) + (list.length - 1) * gap;
+    let y = (H - used) / 2;
+    return list.map(d => { const h = Math.max(d.value * k, 1.5); const r = { ...d, y, h }; y += h + gap; return r; });
+  };
+  const L = stack(flow.left), R = stack(flow.right);
+  const band = (x0, y0a, y0b, x1, y1a, y1b, color, title, attrs = "") => {
+    const xm = (x0 + x1) / 2;
+    return `<path class="lk" ${attrs} d="M${x0},${y0a} C${xm},${y0a} ${xm},${y1a} ${x1},${y1a} L${x1},${y1b} C${xm},${y1b} ${xm},${y0b} ${x0},${y0b} Z" fill="${color}" opacity="${o.export ? 0.42 : 0.38}"><title>${esc2(title)}</title></path>`;
+  };
+  let links = "", nodes = "", labels = "";
+  const tColor = o.textColor ? `fill="${o.textColor}"` : "", mColor = o.mutedColor ? `fill="${o.mutedColor}"` : "";
+  const label = (x, yc, anchor, name, amount) => narrow
+    ? `<text x="${x}" y="${yc - 2}" text-anchor="${anchor}" font-size="${fs}" font-weight="600" ${tColor}>${esc2(name)}</text><text class="amt" x="${x}" y="${yc + fs}" text-anchor="${anchor}" font-size="${fs - 1}" ${mColor}>${amount}</text>`
+    : `<text x="${x}" y="${yc + fs / 3}" text-anchor="${anchor}" font-size="${fs}" ${tColor}><tspan font-weight="600">${esc2(name)}</tspan><tspan class="amt" ${mColor} dx="6">${amount}</tspan></text>`;
+
+  if(flow.mid){
+    const mH = flow.total * k, mY = (H - mH) / 2, mx = cols[1];
+    let off = mY;
+    L.forEach(d => { links += band(cols[0] + nodeW, d.y, d.y + d.h, mx, off, off + d.h, d.color, `${d.name} → ${flow.mid.name}: ${fmt(d.value)} (${pct(d.value)} of income)`); off += d.h; });
+    off = mY;
+    R.forEach(d => { links += band(mx + nodeW, off, off + d.h, cols[2], d.y, d.y + d.h, d.color, `${flow.mid.name} → ${d.name}: ${fmt(d.value)} (${pct(d.value)} of income)`, d.cat ? `data-cat="${esc2(d.cat)}"` : ""); off += d.h; });
+    nodes += `<rect class="nd" x="${mx}" y="${mY}" width="${nodeW}" height="${mH}" rx="3" fill="#8854d0"><title>Income ${fmt(flow.tIn)}${flow.tOut > flow.tIn ? ` + ${fmt(flow.tOut - flow.tIn)} from savings` : ""}</title></rect>`;
+    labels += `<text x="${mx + nodeW / 2}" y="${Math.max(mY - 8, fs)}" text-anchor="middle" font-size="${fs}" font-weight="700" ${tColor}>${esc2(flow.mid.name)} ${money(flow.tIn)}</text>`;
+  } else {
+    // Two columns: Spent → categories
+    let off = L[0].y;
+    R.forEach(d => { links += band(cols[0] + nodeW, off, off + d.h, cols[2], d.y, d.y + d.h, d.color, `${d.name}: ${fmt(d.value)} (${pct(d.value)})`, d.cat ? `data-cat="${esc2(d.cat)}"` : ""); off += d.h; });
+  }
+  L.forEach(d => { nodes += `<rect class="nd" x="${cols[0]}" y="${d.y}" width="${nodeW}" height="${d.h}" rx="3" fill="${d.color}"><title>${esc2(d.name)}: ${fmt(d.value)}</title></rect>`;
+    labels += label(cols[0] - 8, d.y + d.h / 2, "end", `${d.icon} ${d.name}`, money(d.value)); });
+  R.forEach(d => { nodes += `<rect class="nd" ${d.cat ? `data-cat="${esc2(d.cat)}"` : ""} x="${cols[2]}" y="${d.y}" width="${nodeW}" height="${d.h}" rx="3" fill="${d.color}"><title>${esc2(d.name)}: ${fmt(d.value)}</title></rect>`;
+    labels += label(cols[2] + nodeW + 8, d.y + d.h / 2, "start", `${d.icon} ${d.name}`, `${money(d.value)} · ${pct(d.value)}`); });
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-label="Money flow diagram"${o.export ? ` font-family="Helvetica, Arial, sans-serif"` : ""}>${o.export ? `<rect width="${W}" height="${H}" fill="#fff"/>` : ""}${links}${nodes}${labels}</svg>`;
+}
+
+function flowRange(){
+  const v = $("flowPeriod").value, now = new Date(), y = now.getFullYear(), m = now.getMonth();
+  if(v === "this-month") return [new Date(y, m, 1), new Date(y, m + 1, 1), `${MONTHS[m]} ${y}`];
+  if(v === "last-month") return [new Date(y, m - 1, 1), new Date(y, m, 1), `${MONTHS[(m + 11) % 12]} ${m === 0 ? y - 1 : y}`];
+  if(v === "last-3")     return [new Date(y, m - 2, 1), new Date(y, m + 1, 1), `${MONTHS[(m + 10) % 12]} – ${MONTHS[m]}`];
+  if(v === "this-year")  return [new Date(y, 0, 1), new Date(y + 1, 0, 1), String(y)];
+  return [new Date(1990, 0, 1), new Date(2100, 0, 1), "All time"];
+}
+function renderSankey(){
+  const [s0, s1, label] = flowRange();
+  const rows = allRecords.filter(e => e._date >= s0 && e._date < s1);
+  const flow = buildFlow(rows);
+  if(!rows.length || !flow.tOut && !flow.tIn){
+    $("flowSub").textContent = `· ${label}`; $("flowHint").textContent = "";
+    $("sankey").innerHTML = `<div class="empty">Nothing recorded for ${label} yet.</div>`; return;
+  }
+  const net = flow.tIn - flow.tOut;
+  $("flowSub").textContent = `· ${label}` + (flow.tIn ? ` · ${fmt(flow.tIn)} in · ${fmt(flow.tOut)} out · ${net >= 0 ? "saved" : "overspent"} ${fmt(Math.abs(net))}` : ` · ${fmt(flow.tOut)} spent`);
+  $("flowHint").innerHTML = flow.tIn ? "Hover a flow for details · click a category to see its transactions"
+    : "Add income with the <b>💵 Income</b> switch to see where your money comes from and how much you keep.";
+  const W = Math.max(Math.round($("sankey").clientWidth || 900), 300);
+  $("sankey").innerHTML = sankeySVG(flow, W);
+}
+$("flowPeriod").addEventListener("change", renderSankey);
+$("sankey").addEventListener("click", e => {
+  const t = e.target.closest("[data-cat]"); if(!t) return;
+  const v = $("flowPeriod").value, [s0, s1] = flowRange();
+  $("catFilter").value = t.dataset.cat;
+  if(v === "this-month" || v === "last-month" || v === "this-year") $("dateRange").value = v;
+  else if(v === "all") $("dateRange").value = "";
+  else { $("dateRange").value = "custom"; $("dFrom").value = toKey(s0); $("dTo").value = toKey(addDays(s1, -1)); }
+  $("dateCustom").hidden = $("dateRange").value !== "custom";
+  renderList(); renderCalendar(); $("list").scrollIntoView({ behavior:"smooth", block:"center" });
+});
+let sankeyResize; window.addEventListener("resize", () => { clearTimeout(sankeyResize); sankeyResize = setTimeout(renderSankey, 150); });
 
 /* ---------------- Calendar heatmap ---------------- */
 let calMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
@@ -1974,6 +2106,19 @@ async function exportPDF(rows){
   }
   // Transactions start on a new page when there were charts
   if(y > 172){ doc.addPage(); y = 40; }
+  // Money flow diagram (only meaningful with income)
+  if(pIn > 0){
+    const flow = buildFlow(rows), w = 1000;
+    const svg = sankeySVG(flow, w, { export:true, textColor:"#22263f", mutedColor:"#6b7090" });
+    const hgt = +svg.match(/height="(\d+(?:\.\d+)?)"/)[1];
+    const png = await svgToPng(svg, w, hgt);
+    if(png){
+      const dw = W - 80, dh = dw * hgt / w;
+      doc.setFont("helvetica","bold"); doc.setFontSize(11); doc.setTextColor(40); doc.text("Money flow", 40, y);
+      doc.addImage(png, "PNG", 40, y + 6, dw, dh); y += 6 + dh + 22;
+      if(y > doc.internal.pageSize.getHeight() - 120){ doc.addPage(); y = 40; }
+    }
+  }
   doc.setFont("helvetica","bold"); doc.setFontSize(11); doc.setTextColor(40); doc.text("Transactions", 40, y);
 
   doc.autoTable({
@@ -1997,6 +2142,17 @@ async function exportPDF(rows){
   for(let i = 1; i <= pages; i++){ doc.setPage(i); doc.setFont("helvetica","normal"); doc.setFontSize(8); doc.setTextColor(150);
     doc.text(`Spendly report · Page ${i} of ${pages}`, W - 40, H - 20, { align:"right" }); }
   doc.save(fileBase() + ".pdf");
+}
+
+// Render an SVG string to a PNG data URL (2× for sharpness)
+function svgToPng(svg, w, h){
+  return new Promise(res => {
+    const img = new Image();
+    img.onload = () => { const c = document.createElement("canvas"); c.width = w * 2; c.height = h * 2;
+      const x = c.getContext("2d"); x.scale(2, 2); x.drawImage(img, 0, 0, w, h); res(c.toDataURL("image/png")); };
+    img.onerror = () => res(null);
+    img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
+  });
 }
 
 // Category color as RGB for PDF text, darkened if it's too light to read on white
