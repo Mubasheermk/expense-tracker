@@ -197,7 +197,19 @@
   .q-btn .btn-primary{width:auto;white-space:nowrap;padding:12px 28px}
   @media(max-width:900px){.qgrid{grid-template-columns:1fr 1fr}.q-desc{grid-column:1/-1}.q-btn{width:100%}.q-btn .btn-primary{flex:1}}
   #repeatRow[hidden]{display:none}
-  @media(max-width:600px){.card-head h2 .sub-h{display:block;margin-top:3px;font-size:.72rem}}
+  .help-btn{display:inline-grid;place-items:center;width:20px;height:20px;margin-left:6px;vertical-align:middle;border-radius:50%;
+    border:1.5px solid var(--border);background:var(--surface);color:var(--muted);font:700 .7rem/1 'Poppins',system-ui,sans-serif;cursor:help;padding:0;transition:.15s}
+  .help-btn:hover,.help-btn[aria-expanded="true"]{border-color:#8854d0;color:#fff;background:#8854d0}
+  .help-btn:focus-visible{outline:2px solid #8854d0;outline-offset:2px}
+  .stat .help-btn{width:17px;height:17px;font-size:.62rem;border-color:rgba(255,255,255,.6);background:rgba(255,255,255,.18);color:#fff;margin-left:4px}
+  .help-pop{position:fixed;z-index:80;max-width:min(320px,calc(100vw - 24px));padding:12px 14px;border-radius:12px;background:#1f2340;color:#f3f4fb;
+    font-size:.8rem;line-height:1.5;box-shadow:0 12px 32px rgba(10,5,40,.35);pointer-events:auto}
+  :root[data-theme="dark"] .help-pop{background:#f3f4fb;color:#1f2340}
+  .help-pop[hidden]{display:none}
+  .help-pop b{display:block;font-size:.85rem;margin-bottom:4px}
+  .help-pop ul{margin:6px 0 0 16px;padding:0}
+  .help-pop li{margin:2px 0}
+  @media(max-width:600px){.card-head h2 .sub-h{display:block;flex-basis:100%;margin-top:-4px;font-size:.72rem}.card-head h2{flex:1 1 100%;flex-wrap:wrap;row-gap:0}}
   .sankey{width:100%;overflow:hidden}
   .sankey svg{display:block;width:100%;height:auto}
   .sankey .lk{transition:opacity .15s;cursor:pointer}
@@ -361,7 +373,7 @@
   <!-- Quick add (top) -->
   <div class="card quick">
     <div class="quick-head">
-      <h2 id="formTitle">➕ Add Expense</h2>
+      <h2 data-help="add"><span id="formTitle">➕ Add Expense</span></h2>
       <div class="seg" id="typeSeg" role="tablist" aria-label="Record type">
         <button type="button" class="active" data-type="expense">💸 Expense</button>
         <button type="button" data-type="income">💵 Income</button>
@@ -413,7 +425,7 @@
 
   <!-- Summary cards -->
   <section class="stats">
-    <div class="stat s1"><div class="label">Today</div><div class="value" id="stToday">$0.00</div><div class="sub" id="stTodayN">0 expenses</div></div>
+    <div class="stat s1"><div class="label">Today <span data-help-inline="stats"></span></div><div class="value" id="stToday">$0.00</div><div class="sub" id="stTodayN">0 expenses</div></div>
     <div class="stat s2"><div class="label">This Week</div><div class="value" id="stWeek">$0.00</div><div class="sub" id="stWeekN">0 expenses</div></div>
     <div class="stat s3"><div class="label">This Month</div><div class="value" id="stMonth">$0.00</div><div class="sub" id="stMonthN">0 expenses</div></div>
     <div class="stat s4"><div class="label">This Year</div><div class="value" id="stYear">$0.00</div><div class="sub" id="stYearN">0 expenses</div></div>
@@ -423,14 +435,14 @@
   <div class="two-col">
     <div class="card">
       <div class="card-head">
-        <h2>🎯 Budgets <span class="sub-h" id="budgetMonth"></span></h2>
+        <h2 data-help="budgets">🎯 Budgets <span class="sub-h" id="budgetMonth"></span></h2>
         <button class="mini-btn" id="editBudgetsBtn" type="button">✏️ Edit budgets</button>
       </div>
       <div id="budgetList"><div class="empty">Loading…</div></div>
     </div>
     <div class="card">
       <div class="card-head">
-        <h2>🔁 Recurring</h2>
+        <h2 data-help="recurring">🔁 Recurring</h2>
         <span class="sub-h">Set "Repeat" when adding an expense</span>
       </div>
       <div id="recurringList"><div class="empty">Loading…</div></div>
@@ -439,14 +451,14 @@
 
   <!-- Cash flow -->
   <div class="card" style="margin-bottom:20px">
-    <div class="card-head"><h2>💵 Cash flow <span class="sub-h" id="cashSub"></span></h2></div>
+    <div class="card-head"><h2 data-help="cashflow">💵 Cash flow <span class="sub-h" id="cashSub"></span></h2></div>
     <div class="cashflow" id="cashflow"></div>
   </div>
 
   <!-- Money flow (Sankey) -->
   <div class="card" style="margin-bottom:20px">
     <div class="card-head">
-      <h2>🔀 Money flow <span class="sub-h" id="flowSub"></span></h2>
+      <h2 data-help="moneyflow">🔀 Money flow <span class="sub-h" id="flowSub"></span></h2>
       <select id="flowPeriod" style="width:auto;padding:7px 10px;font-size:.82rem">
         <option value="this-month">This month</option>
         <option value="last-month">Last month</option>
@@ -462,7 +474,7 @@
   <!-- Savings goals -->
   <div class="card" style="margin-bottom:20px">
     <div class="card-head">
-      <h2>🏁 Savings goals <span class="sub-h" id="goalsSub"></span></h2>
+      <h2 data-help="goals">🏁 Savings goals <span class="sub-h" id="goalsSub"></span></h2>
       <button class="mini-btn" id="newGoalBtn" type="button">＋ New goal</button>
     </div>
     <div class="goals" id="goals"><div class="empty">Loading…</div></div>
@@ -471,7 +483,7 @@
   <!-- Insights -->
   <div class="card" id="insightsCard" style="margin-bottom:20px">
     <div class="card-head">
-      <h2>💡 Insights <span class="sub-h" id="insightsSub"></span></h2>
+      <h2 data-help="insights">💡 Insights <span class="sub-h" id="insightsSub"></span></h2>
     </div>
     <div class="insights" id="insights"><div class="empty">Loading…</div></div>
   </div>
@@ -480,7 +492,7 @@
     <!-- Charts (full width) -->
     <div class="card">
       <div class="chart-head">
-        <h2 style="margin:0">📊 Spending Charts</h2>
+        <h2 style="margin:0" data-help="charts">📊 Spending Charts</h2>
         <div class="tabs" id="tabs">
           <button class="tab active" data-p="day">Day</button>
           <button class="tab" data-p="week">Week</button>
@@ -507,7 +519,7 @@
   <!-- Calendar -->
   <div class="card mt">
     <div class="card-head">
-      <h2>📅 Calendar <span class="sub-h" id="calSub"></span></h2>
+      <h2 data-help="calendar">📅 Calendar <span class="sub-h" id="calSub"></span></h2>
       <div class="nav">
         <button type="button" id="calPrev" aria-label="Previous month">‹</button>
         <span id="calLabel" style="min-width:96px;text-align:center"></span>
@@ -523,7 +535,7 @@
   <!-- List -->
   <div class="card mt">
     <div class="list-head">
-      <h2 style="margin:0">🧾 Transactions</h2>
+      <h2 style="margin:0" data-help="transactions">🧾 Transactions</h2>
       <div class="filters">
         <input id="search" placeholder="🔍 Search…" />
         <select id="catFilter"><option value="">All categories</option></select>
@@ -567,6 +579,7 @@
   </div>
 </div>
 <div class="toast" id="toast"></div>
+<div class="help-pop" id="helpPop" role="tooltip" hidden></div>
 
 <!-- Goal editor -->
 <div class="modal" id="goalModal" hidden>
@@ -617,7 +630,7 @@
 <div class="modal" id="importModal" hidden>
   <div class="modal-card wide">
     <div class="card-head">
-      <h2>📥 Import transactions</h2>
+      <h2 data-help="import">📥 Import transactions</h2>
       <button type="button" class="x-btn" id="impClose" aria-label="Close">✕</button>
     </div>
 
@@ -676,7 +689,7 @@
 <div class="modal" id="catModal" hidden>
   <div class="modal-card">
     <div class="card-head">
-      <h2>🏷️ Your categories <span class="sub-h" id="catCount"></span></h2>
+      <h2 data-help="categories">🏷️ Your categories <span class="sub-h" id="catCount"></span></h2>
       <button type="button" class="x-btn" id="closeCats" aria-label="Close">✕</button>
     </div>
     <p class="modal-note">Add categories for anything the defaults don't cover, like Pets, Kids or Home. They appear in the form, filters, charts and budgets.</p>
@@ -2250,6 +2263,93 @@ $("next").addEventListener("click", ()=>shift(1));
 $("todayBtn").addEventListener("click", ()=>{ anchor = new Date(); renderCharts(); });
 
 renderCharts();
+
+/* ---------------- Help tips ---------------- */
+const HELP = {
+  add: ["Add a transaction", "Record what you spend or earn.", [
+    "Switch <i>💸 Expense / 💵 Income</i> at the top right",
+    "Add a note with <i>#tags</i> (e.g. #vacation) to group related items",
+    "Set <i>Repeat</i> for rent, bills or paychecks — they'll be added automatically",
+    "Press <i>Enter</i> to save; ✏️ in Transactions to edit"]],
+  stats: ["Spending at a glance", "Total spent today, this week (Mon–Sun), this month and this year. Any income for the same period shows as “+$X in”."],
+  budgets: ["Monthly budgets", "Spending limits for each category, plus an optional overall total.", [
+    "Bars turn <i>yellow at 80%</i> and <i>red</i> when you go over",
+    "Click <i>Edit budgets</i> to set limits — leave a box blank for no limit",
+    "Budgets reset at the start of every month"]],
+  recurring: ["Recurring items", "Expenses or income that repeat weekly, monthly or yearly.", [
+    "Added automatically when you open the app — missed dates are filled in",
+    "⏸️ pauses it (no catch-up when you resume)",
+    "🗑️ stops repeating but keeps past entries",
+    "Create one by choosing <i>Repeat</i> when adding"]],
+  cashflow: ["Cash flow", "This month's money in versus money out.", [
+    "<i>Net</i> = income − spending",
+    "<i>Savings rate</i> = net ÷ income — 20% or more is a common goal",
+    "Add income with the <i>💵 Income</i> switch in the form"]],
+  moneyflow: ["Money flow", "Where your money comes from and where it goes.", [
+    "Income sources on the left, spending categories on the right",
+    "Green <i>Saved</i> = money left over; red <i>From savings</i> = you spent more than you earned",
+    "Hover a band for amounts; click a category to see its transactions",
+    "Pick a different period with the menu on the right"]],
+  goals: ["Savings goals", "Save toward targets like an emergency fund, a trip or a big purchase.", [
+    "<i>＋ Add money</i> whenever you set some aside (tracked separately from expenses)",
+    "With a target date it shows the monthly amount needed and whether you're on track",
+    "<i>✏️ Edit</i> to change the target, date or name, or delete the goal"]],
+  insights: ["Insights", "Automatic observations comparing this month so far with the same days last month — trend, projected month-end spending, biggest changes, top category and largest expense. Uses spending only."],
+  charts: ["Spending charts", "Your spending over time, with income in green when there is any.", [
+    "<i>Day / Week / Month / Year</i> switch the view; ‹ › move between periods",
+    "The doughnut shows spending by category for the period shown"]],
+  calendar: ["Calendar", "Each day's spending as a color — the darker the pink, the more you spent.", [
+    "Green dots mark days with income",
+    "Click a day to show only its transactions; click it again to clear",
+    "‹ › change the month"]],
+  transactions: ["Transactions", "All your expenses and income, newest first.", [
+    "Search text or <i>#tag</i>, and filter by category or date range",
+    "✏️ edits, 🗑️ deletes",
+    "<i>Import</i> a bank or card statement (CSV/Excel)",
+    "<i>Export</i> to Excel, CSV or a PDF report"]],
+  import: ["Importing a statement", "Download a CSV or Excel statement from your bank or card's website, then:", [
+    "Check the column choices — they're filled in automatically",
+    "For <i>credit cards</i>, set Amount signs to “Positive = expense”",
+    "Unticked rows (duplicates, card payments) are skipped — tick to include",
+    "Re-importing the same file never creates duplicates; <i>Undo</i> removes the whole import"]],
+  categories: ["Your categories", "Add categories the defaults don't cover, like Pets or Kids. They appear everywhere — the form, filters, charts, budgets and exports. Removing one keeps old expenses (they show as Other)."]
+};
+let helpOpen = null, helpPinned = false, helpTimer;
+function helpHTML(k){ const [t, d, list] = HELP[k]; return `<b>${t}</b>${d}${list ? `<ul>${list.map(x => `<li>${x}</li>`).join("")}</ul>` : ""}`; }
+function showHelp(btn, pin){
+  clearTimeout(helpTimer);
+  if(helpOpen && helpOpen !== btn) helpOpen.setAttribute("aria-expanded", "false");
+  const pop = $("helpPop"); pop.innerHTML = helpHTML(btn.dataset.helpKey); pop.hidden = false;
+  helpOpen = btn; helpPinned = !!pin; btn.setAttribute("aria-expanded", "true");
+  // Position below the button, kept inside the screen
+  const r = btn.getBoundingClientRect(), w = pop.offsetWidth, h = pop.offsetHeight;
+  let left = Math.min(Math.max(12, r.left + r.width / 2 - w / 2), window.innerWidth - w - 12);
+  let top = r.bottom + 8; if(top + h > window.innerHeight - 12) top = Math.max(12, r.top - h - 8);
+  pop.style.left = left + "px"; pop.style.top = top + "px";
+}
+function hideHelp(){ if(!helpOpen) return; helpOpen.setAttribute("aria-expanded", "false"); $("helpPop").hidden = true; helpOpen = null; helpPinned = false; }
+function makeHelpBtn(key){
+  const b = document.createElement("button");
+  b.type = "button"; b.className = "help-btn"; b.textContent = "?"; b.dataset.helpKey = key;
+  b.setAttribute("aria-label", "About " + HELP[key][0]); b.setAttribute("aria-expanded", "false"); b.setAttribute("aria-describedby", "helpPop");
+  b.addEventListener("click", e => { e.stopPropagation(); e.preventDefault(); helpOpen === b && helpPinned ? hideHelp() : showHelp(b, true); });
+  // Hover only on devices with a real mouse; taps use click
+  b.addEventListener("mouseenter", () => { if(matchMedia("(hover:hover)").matches && !helpPinned) showHelp(b, false); });
+  b.addEventListener("mouseleave", () => { if(!helpPinned) helpTimer = setTimeout(hideHelp, 150); });
+  b.addEventListener("focus", () => { if(!helpOpen) showHelp(b, false); });
+  b.addEventListener("blur", () => { if(!helpPinned) hideHelp(); });
+  return b;
+}
+document.querySelectorAll("h2[data-help]").forEach(h => {
+  const b = makeHelpBtn(h.dataset.help), sub = h.querySelector(".sub-h");
+  sub ? h.insertBefore(b, sub) : h.appendChild(b);
+});
+document.querySelectorAll("[data-help-inline]").forEach(el => el.replaceWith(makeHelpBtn(el.dataset.helpInline)));
+$("helpPop").addEventListener("mouseenter", () => clearTimeout(helpTimer));
+$("helpPop").addEventListener("mouseleave", () => { if(!helpPinned) helpTimer = setTimeout(hideHelp, 150); });
+document.addEventListener("click", e => { if(helpOpen && !e.target.closest("#helpPop")) hideHelp(); });
+document.addEventListener("keydown", e => { if(e.key === "Escape") hideHelp(); });
+window.addEventListener("scroll", () => { if(helpOpen && !helpPinned) hideHelp(); else if(helpOpen) showHelp(helpOpen, true); }, { passive:true });
 
 /* ---------------- Dark mode ---------------- */
 function applyTheme(t, save){
