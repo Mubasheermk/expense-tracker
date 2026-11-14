@@ -4,7 +4,7 @@
  * - Firebase data / auth / App Check traffic is never touched: Firestore keeps its own offline copy.
  * Bump CACHE when you change this file.
  */
-const CACHE = "spendly-v1";
+const CACHE = "spendly-v2";
 const SHELL = ["./", "./index.html", "./manifest.webmanifest", "./icons/icon-192.png", "./icons/icon-512.png"];
 const CACHE_FIRST_HOSTS = ["cdnjs.cloudflare.com", "fonts.googleapis.com", "fonts.gstatic.com"];
 
@@ -49,4 +49,13 @@ self.addEventListener("fetch", e => {
     );
   }
   // Everything else (Firestore, Auth, App Check, reCAPTCHA) goes straight to the network
+});
+
+// Clicking a bill reminder opens (or focuses) Spendly
+self.addEventListener("notificationclick", e => {
+  e.notification.close();
+  e.waitUntil(self.clients.matchAll({ type:"window", includeUncontrolled:true }).then(list => {
+    for (const c of list) if ("focus" in c) return c.focus();
+    return self.clients.openWindow("./");
+  }));
 });
