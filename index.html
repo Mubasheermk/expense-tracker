@@ -197,6 +197,19 @@
   .q-btn .btn-primary{width:auto;white-space:nowrap;padding:12px 28px}
   @media(max-width:900px){.qgrid{grid-template-columns:1fr 1fr}.q-desc{grid-column:1/-1}.q-btn{width:100%}.q-btn .btn-primary{flex:1}}
   #repeatRow[hidden]{display:none}
+  .upcoming{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:8px}
+  .up{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:12px;background:var(--surface);border-left:5px solid var(--c,#8854d0)}
+  .up .ud{flex:0 0 64px;text-align:center;line-height:1.1}
+  .up .ud b{display:block;font-size:1.15rem}
+  .up .ud span{font-size:.68rem;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+  .up .ui{flex:1;min-width:0}
+  .up .ut{font-weight:600;font-size:.88rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .up .um{font-size:.72rem;color:var(--muted)}
+  .up .ua{font-weight:700;font-size:.92rem}
+  .up.soon{box-shadow:0 0 0 2px #ff9f4366 inset}
+  .b-soon{background:#ff9f4326;color:#e58e26}
+  .remind-status{font-size:.78rem;margin-top:8px;padding:8px 10px;border-radius:10px;background:var(--soft)}
+  #remindBtn.on{background:#10ac84;color:#fff}
   .mini-btn.danger{color:#e74c3c}
   .mini-btn.on{background:#8854d0;color:#fff}
   .item .pick{width:20px;height:20px;flex:0 0 auto;cursor:pointer;accent-color:#8854d0}
@@ -478,6 +491,20 @@
     </div>
   </div>
 
+  <!-- Upcoming bills -->
+  <div class="card" style="margin-bottom:20px">
+    <div class="card-head">
+      <h2 data-help="upcoming">📆 Upcoming <span class="sub-h" id="upSub"></span></h2>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <select id="upDays" style="width:auto;padding:7px 10px;font-size:.82rem">
+          <option value="7">Next 7 days</option><option value="14" selected>Next 14 days</option><option value="30">Next 30 days</option>
+        </select>
+        <button type="button" class="mini-btn" id="remindBtn">🔔 Reminders</button>
+      </div>
+    </div>
+    <div class="upcoming" id="upcoming"></div>
+  </div>
+
   <!-- Cash flow -->
   <div class="card" style="margin-bottom:20px">
     <div class="card-head"><h2 data-help="cashflow">💵 Cash flow <span class="sub-h" id="cashSub"></span></h2></div>
@@ -621,6 +648,27 @@
   <span class="bulk-tag"><input id="bulkTag" maxlength="25" placeholder="#tag" /><button type="button" class="mini-btn" id="bulkTagBtn">＋ Tag</button></span>
   <button type="button" class="mini-btn danger" id="bulkDel">🗑️ Delete</button>
   <button type="button" class="mini-btn" id="bulkDone">✕ Done</button>
+</div>
+
+<!-- Reminders -->
+<div class="modal" id="remindModal" hidden>
+  <div class="modal-card" style="max-width:460px">
+    <div class="card-head">
+      <h2>🔔 Bill reminders</h2>
+      <button type="button" class="x-btn" id="remindClose" aria-label="Close">✕</button>
+    </div>
+    <p class="modal-note">Get a notification on this device before a recurring bill is due.</p>
+    <label class="imp-check"><input type="checkbox" id="remindOn" /> <span><b>Remind me</b> about upcoming bills on this device</span></label>
+    <div class="row" style="margin-top:8px"><label for="remindDays">When</label>
+      <select id="remindDays"><option value="0">On the day it's due</option><option value="1" selected>1 day before</option><option value="3">3 days before</option><option value="7">A week before</option></select></div>
+    <label class="imp-check" style="margin-top:6px"><input type="checkbox" id="remindIncome" /> <span>Also remind me about expected income</span></label>
+    <div class="remind-status" id="remindStatus"></div>
+    <p class="modal-note" style="margin-top:10px">ℹ️ Reminders show when Spendly is open, or the next time you open it — browsers can't wake the app without a server. On iPhone, add Spendly to your Home Screen first (iOS 16.4 or later).</p>
+    <div class="actions" style="margin-top:8px;justify-content:space-between;flex-wrap:wrap">
+      <button class="btn btn-ghost" type="button" id="remindTest">Send a test</button>
+      <button class="btn btn-primary" type="button" id="remindSave" style="width:auto">Save</button>
+    </div>
+  </div>
 </div>
 
 <!-- Smart rules -->
@@ -1046,7 +1094,7 @@ function startSync(){
 
   unsubs.push(recurringRef.onSnapshot(snap => {
     recurring = snap.docs.map(d => ({ id:d.id, ...d.data() }));
-    renderRecurring();
+    renderRecurring(); renderUpcoming(); checkReminders();
     processRecurring();
   }, err => { console.error(err); $("recurringList").innerHTML = `<div class="empty">⚠️ ${esc(err.message)}</div>`; }));
 }
@@ -1500,6 +1548,104 @@ $("goals").addEventListener("click", e => {
   const id = b.dataset.gfund || b.dataset.gwd || b.dataset.gedit; const g = goals.find(x => x.id === id); if(!g) return;
   if(b.dataset.gedit) openGoal(g); else openFund(g, b.dataset.gfund ? "add" : "withdraw");
 });
+
+/* ---------------- Upcoming bills ---------------- */
+// Future dates of every active recurring item within the next N days
+function upcomingItems(days){
+  const today = startOfDay(new Date()), endK = toKey(addDays(today, days)), todayK = toKey(today), out = [];
+  recurring.filter(r => r.active !== false && r.nextDate).forEach(r => {
+    let d = r.nextDate, n = 0;
+    while(d < todayK && n < 400){ d = advanceDate(r, d); n++; }           // skip anything not yet caught up
+    while(d <= endK && n < 400){ out.push({ rule:r, date:d }); d = advanceDate(r, d); n++; }
+  });
+  return out.sort((a, b) => a.date.localeCompare(b.date) || b.rule.amount - a.rule.amount);
+}
+const daysUntil = k => Math.round((parseKey(k) - startOfDay(new Date())) / 86400000);
+function whenText(k){ const n = daysUntil(k); return n <= 0 ? "Today" : n === 1 ? "Tomorrow" : `In ${n} days`; }
+function renderUpcoming(){
+  const days = +$("upDays").value, items = upcomingItems(days);
+  const out = sum(items.filter(i => i.rule.type !== "income").map(i => i.rule)), inn = sum(items.filter(i => i.rule.type === "income").map(i => i.rule));
+  // Still due this calendar month (from today on)
+  const now = new Date(), monthEndDays = daysIn(now.getFullYear(), now.getMonth()) - now.getDate();
+  const leftThisMonth = sum(upcomingItems(monthEndDays).filter(i => i.rule.type !== "income").map(i => i.rule));
+  $("upSub").textContent = items.length ? `· ${fmt(out)} due${inn ? ` · +${fmt(inn)} expected` : ""} · ${fmt(leftThisMonth)} left to pay in ${MONTHS[now.getMonth()]}` : "";
+  if(!recurring.some(r => r.active !== false)){
+    $("upcoming").innerHTML = `<div class="empty" style="grid-column:1/-1">No recurring bills yet. Add rent, subscriptions or paychecks with <b>Repeat</b> in the form, and they'll show up here before they're due.</div>`; return;
+  }
+  if(!items.length){ $("upcoming").innerHTML = `<div class="empty" style="grid-column:1/-1">Nothing due in the next ${days} days. 🎉</div>`; return; }
+  $("upcoming").innerHTML = items.map(({ rule:r, date }) => {
+    const c = catMap[r.category] || catMap.Other, d = parseKey(date), n = daysUntil(date), inc = r.type === "income";
+    return `<div class="up ${n <= 3 && !inc ? "soon" : ""}" style="--c:${inc ? "#10ac84" : c.color}">
+      <div class="ud"><span>${DOW[(d.getDay() + 6) % 7]}</span><b>${d.getDate()}</b><span>${MONTHS[d.getMonth()]}</span></div>
+      <div class="ui"><div class="ut">${esc(c.icon)} ${esc(r.title)}</div>
+        <div class="um">${whenText(date)} · ${FREQ_LABEL[r.frequency] || ""}${n <= 3 && !inc ? ` <span class="badge b-soon">Soon</span>` : ""}</div></div>
+      <div class="ua" style="color:${inc ? "#10ac84" : "var(--text)"}">${inc ? "+" : ""}${fmt(r.amount)}</div></div>`;
+  }).join("");
+}
+$("upDays").addEventListener("change", renderUpcoming);
+
+/* ---------------- Reminders (notifications on this device) ---------------- */
+const REMIND_KEY = "spendly-reminders", NOTIFIED_KEY = "spendly-notified";
+const remindPrefs = () => { try{ return { on:false, days:1, income:false, ...JSON.parse(localStorage.getItem(REMIND_KEY) || "{}") }; }catch(e){ return { on:false, days:1, income:false }; } };
+const canNotify = () => "Notification" in window;
+function remindStatusText(){
+  if(!canNotify()) return "⚠️ This browser doesn't support notifications. On iPhone, add Spendly to your Home Screen and open it from there.";
+  if(Notification.permission === "denied") return "🚫 Notifications are blocked for this site. Allow them in your browser's site settings, then try again.";
+  if(Notification.permission === "granted") return remindPrefs().on ? "✅ Reminders are on for this device." : "Notifications are allowed — tick “Remind me” and Save.";
+  return "You'll be asked to allow notifications when you save.";
+}
+function openRemind(){
+  const p = remindPrefs(); $("remindOn").checked = p.on; $("remindDays").value = String(p.days); $("remindIncome").checked = !!p.income;
+  $("remindStatus").textContent = remindStatusText(); $("remindModal").hidden = false;
+}
+const closeRemind = () => { $("remindModal").hidden = true; };
+$("remindBtn").addEventListener("click", openRemind);
+$("remindClose").addEventListener("click", closeRemind);
+$("remindModal").addEventListener("click", e => { if(e.target.id === "remindModal") closeRemind(); });
+async function ensurePermission(){
+  if(!canNotify()) return false;
+  if(Notification.permission === "granted") return true;
+  if(Notification.permission === "denied") return false;
+  return (await Notification.requestPermission()) === "granted";
+}
+async function notify(title, body, tag){
+  try{
+    let reg = null;
+    try{ reg = "serviceWorker" in navigator ? await navigator.serviceWorker.getRegistration() : null; }catch(e){ reg = null; }   // fall back to a plain notification
+    const opts = { body, tag, icon:"icons/icon-192.png", badge:"icons/icon-192.png" };
+    if(reg && reg.showNotification) await reg.showNotification(title, opts); else new Notification(title, opts);
+    return true;
+  }catch(err){ console.error(err); return false; }
+}
+$("remindSave").addEventListener("click", async () => {
+  const prefs = { on:$("remindOn").checked, days:+$("remindDays").value, income:$("remindIncome").checked };
+  if(prefs.on && !(await ensurePermission())){ prefs.on = false; $("remindOn").checked = false; $("remindStatus").textContent = remindStatusText(); toast("Notifications weren't allowed"); }
+  try{ localStorage.setItem(REMIND_KEY, JSON.stringify(prefs)); }catch(e){}
+  $("remindBtn").classList.toggle("on", prefs.on);
+  $("remindStatus").textContent = remindStatusText();
+  if(prefs.on){ toast("🔔 Reminders on for this device"); closeRemind(); checkReminders(); } else toast("🔕 Reminders off");
+});
+$("remindTest").addEventListener("click", async () => {
+  if(!(await ensurePermission())){ $("remindStatus").textContent = remindStatusText(); return; }
+  const ok = await notify("Spendly test 🔔", "Reminders work on this device.", "spendly-test");
+  $("remindStatus").textContent = ok ? "✅ Test sent — check your notifications." : "Couldn't show a notification on this device.";
+});
+// Notify once per bill and due date; grouped into one notification
+async function checkReminders(){
+  const p = remindPrefs(); $("remindBtn").classList.toggle("on", p.on);
+  if(!p.on || !canNotify() || Notification.permission !== "granted" || !recurring.length) return;
+  let seen = []; try{ seen = JSON.parse(localStorage.getItem(NOTIFIED_KEY) || "[]"); }catch(e){}
+  const todayK = toKey(new Date());
+  seen = seen.filter(k => k.split("|")[1] >= todayK);                     // forget past dates
+  const due = upcomingItems(p.days).filter(i => (p.income || i.rule.type !== "income") && !seen.includes(`${i.rule.id}|${i.date}`));
+  if(!due.length){ try{ localStorage.setItem(NOTIFIED_KEY, JSON.stringify(seen)); }catch(e){} return; }
+  const line = i => `${i.rule.type === "income" ? "💵" : "💸"} ${i.rule.title} ${i.rule.type === "income" ? "+" : ""}${fmt(i.rule.amount)} · ${whenText(i.date).toLowerCase()}`;
+  const title = due.length === 1 ? `${due[0].rule.type === "income" ? "Income expected" : "Bill due"} ${whenText(due[0].date).toLowerCase()}` : `${due.length} bills coming up`;
+  const ok = await notify(title, due.slice(0, 5).map(line).join("\n") + (due.length > 5 ? `\n+${due.length - 5} more` : ""), "spendly-bills");
+  if(ok){ seen.push(...due.map(i => `${i.rule.id}|${i.date}`)); try{ localStorage.setItem(NOTIFIED_KEY, JSON.stringify(seen)); }catch(e){} }
+}
+setInterval(checkReminders, 30 * 60 * 1000);
+document.addEventListener("visibilitychange", () => { if(document.visibilityState === "visible") checkReminders(); });
 
 /* ---------------- Smart rules ---------------- */
 let ruleTimer;
@@ -2595,6 +2741,11 @@ const HELP = {
     "⏸️ pauses it (no catch-up when you resume)",
     "🗑️ stops repeating but keeps past entries",
     "Create one by choosing <i>Repeat</i> when adding"]],
+  upcoming: ["Upcoming", "Recurring bills (and expected income) due soon, based on your Repeat items.", [
+    "Choose the next 7, 14 or 30 days",
+    "Orange <i>Soon</i> = due within 3 days",
+    "The header shows what's still left to pay this month",
+    "<i>🔔 Reminders</i> sends a notification on this device before a bill is due"]],
   cashflow: ["Cash flow", "This month's money in versus money out.", [
     "<i>Net</i> = income − spending",
     "<i>Savings rate</i> = net ÷ income — 20% or more is a common goal",
