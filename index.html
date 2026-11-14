@@ -197,6 +197,29 @@
   .q-btn .btn-primary{width:auto;white-space:nowrap;padding:12px 28px}
   @media(max-width:900px){.qgrid{grid-template-columns:1fr 1fr}.q-desc{grid-column:1/-1}.q-btn{width:100%}.q-btn .btn-primary{flex:1}}
   #repeatRow[hidden]{display:none}
+  .mini-btn.danger{color:#e74c3c}
+  .mini-btn.on{background:#8854d0;color:#fff}
+  .item .pick{width:20px;height:20px;flex:0 0 auto;cursor:pointer;accent-color:#8854d0}
+  .item.picked{outline:2px solid #8854d0;outline-offset:-2px}
+  .bulk-bar{position:fixed;left:50%;bottom:16px;transform:translateX(-50%);z-index:55;display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:center;
+    max-width:calc(100vw - 24px);padding:10px 14px;border-radius:16px;background:var(--surface);box-shadow:0 12px 32px rgba(10,5,40,.3);border:1px solid var(--border)}
+  .bulk-bar[hidden]{display:none}
+  .bulk-bar select,.bulk-bar input{width:auto;padding:7px 9px;font-size:.8rem}
+  .bulk-bar #bulkTag{width:90px}
+  .bulk-all{display:flex;align-items:center;gap:6px;font-size:.82rem;font-weight:600;color:var(--text)}
+  .bulk-all input{width:auto}
+  .bulk-tag{display:inline-flex;gap:4px}
+  body.selecting .toast{bottom:90px}
+  .rule-add{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap}
+  .rule-add .row{margin-bottom:0}
+  .rule-add select{width:auto}
+  .rule{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:12px;background:var(--surface);margin-bottom:6px;font-size:.84rem}
+  .rule .rm{flex:1;min-width:0}
+  .rule code{background:var(--soft);padding:2px 6px;border-radius:6px;font-size:.8rem}
+  .rule .rn{font-size:.72rem;color:var(--muted)}
+  .rule button{border:none;background:var(--soft);border-radius:8px;width:30px;height:30px;cursor:pointer}
+  .rule-hint{font-size:.72rem;color:#8854d0;font-weight:600;margin-left:6px}
+  .toast .t-act{margin-left:10px;font:inherit;font-weight:700;border:none;border-radius:8px;padding:4px 10px;cursor:pointer;background:#8854d0;color:#fff}
   .menu-sep{height:1px;background:var(--border);margin:4px 0}
   .menu-note{font-size:.7rem;color:var(--muted);padding:0 4px}
   .rst-sum{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px}
@@ -418,7 +441,7 @@
       </div>
       <div class="q-bottom">
         <div class="row q-cats">
-          <label>Category</label>
+          <label>Category <span class="rule-hint" id="ruleHint"></span></label>
           <div class="cats" id="catChips"></div>
         </div>
         <div class="actions q-btn">
@@ -543,6 +566,8 @@
     <div class="list-head">
       <h2 style="margin:0" data-help="transactions">🧾 Transactions</h2>
       <div class="filters">
+        <button type="button" class="mini-btn" id="selectBtn" title="Select several transactions to edit or delete at once">☑ Select</button>
+        <button type="button" class="mini-btn" id="rulesBtn" title="Rules that file transactions into categories automatically">🪄 Rules</button>
         <input id="search" placeholder="🔍 Search…" />
         <select id="catFilter"><option value="">All categories</option></select>
         <select id="dateRange" title="Date range">
@@ -588,6 +613,37 @@
   </div>
 </div>
 <div class="toast" id="toast"></div>
+
+<!-- Bulk actions bar -->
+<div class="bulk-bar" id="bulkBar" hidden>
+  <label class="bulk-all"><input type="checkbox" id="bulkAll" /> <span id="bulkCount">0 selected</span></label>
+  <select id="bulkCat" title="Change category"><option value="">Change category…</option></select>
+  <span class="bulk-tag"><input id="bulkTag" maxlength="25" placeholder="#tag" /><button type="button" class="mini-btn" id="bulkTagBtn">＋ Tag</button></span>
+  <button type="button" class="mini-btn danger" id="bulkDel">🗑️ Delete</button>
+  <button type="button" class="mini-btn" id="bulkDone">✕ Done</button>
+</div>
+
+<!-- Smart rules -->
+<div class="modal" id="rulesModal" hidden>
+  <div class="modal-card" style="max-width:600px">
+    <div class="card-head">
+      <h2 data-help="rules">🪄 Smart rules <span class="sub-h" id="rulesCount"></span></h2>
+      <button type="button" class="x-btn" id="rulesClose" aria-label="Close">✕</button>
+    </div>
+    <p class="modal-note">When a description contains the text, Spendly picks the category for you — as you type a new expense, and when you import a statement.</p>
+    <form class="rule-add" id="ruleForm" autocomplete="off">
+      <div class="row" style="flex:1 1 170px"><label for="ruleMatch">Description contains</label><input id="ruleMatch" maxlength="40" placeholder="e.g. uber eats" required /></div>
+      <div class="row"><label for="ruleType">Type</label><select id="ruleType"><option value="expense">Expense</option><option value="income">Income</option></select></div>
+      <div class="row"><label for="ruleCat">File as</label><select id="ruleCat"></select></div>
+      <button class="btn btn-primary" type="submit" style="width:auto">Add rule</button>
+    </form>
+    <div id="rulesList" style="margin-top:12px"></div>
+    <div class="actions" style="margin-top:10px;justify-content:space-between;flex-wrap:wrap">
+      <button class="btn btn-ghost" type="button" id="rulesApply">Apply rules to existing transactions</button>
+      <button class="btn btn-ghost" type="button" id="rulesDone">Done</button>
+    </div>
+  </div>
+</div>
 <div class="help-pop" id="helpPop" role="tooltip" hidden></div>
 
 <!-- Goal editor -->
@@ -783,6 +839,8 @@ let expensesRef = null;   // users/{uid}/expenses
 let budgetRef = null;     // users/{uid}/settings/budgets
 let catsRef = null;       // users/{uid}/settings/categories
 let goalsRef = null;      // users/{uid}/goals
+let rulesRef = null;      // users/{uid}/settings/rules
+let userRules = [];       // [{match, category, type}]
 let goals = [];
 let recurringRef = null;  // users/{uid}/recurring
 let unsubs = [];
@@ -867,15 +925,16 @@ function setFormType(t, keepCategory){
   $("fPay").innerHTML = PAY_OPTIONS[t].map(o => `<option>${o}</option>`).join("");
   if(PAY_OPTIONS[t].includes(pay)) $("fPay").value = pay;
   $("fTitle").placeholder = t === "income" ? "e.g. Paycheck" : "e.g. Lunch with team";
-  if(!keepCategory) selectedCat = t === "income" ? "Salary" : "Food";
+  if(!keepCategory){ selectedCat = t === "income" ? "Salary" : "Food"; catTouched = false; if($("ruleHint")) $("ruleHint").textContent = ""; }
   if(!editingId){ $("formTitle").textContent = t === "income" ? "➕ Add Income" : "➕ Add Expense"; $("submitBtn").textContent = t === "income" ? "Add Income" : "Add Expense"; }
   renderChips();
 }
 $("typeSeg").addEventListener("click", e => { const b = e.target.closest("button[data-type]"); if(b && b.dataset.type !== formType) setFormType(b.dataset.type); });
+let catTouched = false;   // true once the user picks a chip themselves; rules then leave the choice alone
 $("catChips").addEventListener("click", e => {
   if(e.target.closest("#manageCatsBtn")) return openCats();
   const chip = e.target.closest(".chip[data-c]"); if(!chip) return;
-  selectedCat = chip.dataset.c; renderChips();
+  selectedCat = chip.dataset.c; catTouched = true; renderChips();
 });
 function renderCatFilter(){
   const cur = $("catFilter").value;
@@ -919,7 +978,7 @@ auth.onAuthStateChanged(user => {
   unsubs.forEach(u => u()); unsubs = [];
   allRecords = []; expenses = []; incomes = []; budgets = {}; recurring = []; setFormType("expense"); resetForm();
   if(!user){
-    expensesRef = budgetRef = recurringRef = catsRef = goalsRef = null; goals = []; setCategories([]);
+    expensesRef = budgetRef = recurringRef = catsRef = goalsRef = rulesRef = null; goals = []; userRules = []; setCategories([]); exitSelect();
     document.body.classList.add("signed-out");
     return;
   }
@@ -934,6 +993,7 @@ auth.onAuthStateChanged(user => {
   budgetRef    = userRef.collection("settings").doc("budgets");
   catsRef      = userRef.collection("settings").doc("categories");
   goalsRef     = userRef.collection("goals");
+  rulesRef     = userRef.collection("settings").doc("rules");
   recurringRef = userRef.collection("recurring");
   startSync();
 });
@@ -967,6 +1027,11 @@ function startSync(){
     budgets = (snap.exists && snap.data().limits) || {};
     renderBudgets();
   }, err => { console.error(err); $("budgetList").innerHTML = `<div class="empty">⚠️ ${esc(err.message)}</div>`; }));
+
+  unsubs.push(rulesRef.onSnapshot(snap => {
+    userRules = (snap.exists && snap.data().rules) || [];
+    if(!$("rulesModal").hidden) renderRules();
+  }, err => console.error(err)));
 
   unsubs.push(goalsRef.onSnapshot(snap => {
     goals = snap.docs.map(d => ({ id:d.id, ...d.data() }));
@@ -1118,8 +1183,15 @@ function parseDateCell(v, fmtPref){
     if(mo < 1 || mo > 12 || da < 1 || da > 31) return null; return ok(new Date(y, mo - 1, da)); }
   const d = new Date(t); return isNaN(d) ? null : ok(new Date(d.getFullYear(), d.getMonth(), d.getDate()));
 }
+// Lowercase, punctuation → spaces, so "Netflix.com" and "netflix com" compare equal
+const normText = t => String(t || "").toLowerCase().replace(/[^\p{L}\p{N}&]+/gu, " ").replace(/\s+/g, " ").trim();
+function matchRule(title, type){
+  const t = " " + normText(title) + " ";
+  return userRules.find(r => (r.type || "expense") === type && r.match && t.includes(" " + normText(r.match)) && catMap[r.category]);
+}
 function guessCategory(title, type, given){
   const list = type === "income" ? INCOME_CATEGORIES : CATEGORIES;
+  const ur = matchRule(title, type); if(ur) return ur.category;          // your own rules win
   if(given){ const g = list.find(c => c.name.toLowerCase() === String(given).trim().toLowerCase()); if(g) return g.name; }
   const rules = type === "income" ? AUTO_INCOME : AUTO_CATS;
   for(const [re, cat] of rules) if(re.test(title)) return cat;
@@ -1429,6 +1501,135 @@ $("goals").addEventListener("click", e => {
   if(b.dataset.gedit) openGoal(g); else openFund(g, b.dataset.gfund ? "add" : "withdraw");
 });
 
+/* ---------------- Smart rules ---------------- */
+let ruleTimer;
+$("fTitle").addEventListener("input", () => {
+  clearTimeout(ruleTimer);
+  ruleTimer = setTimeout(() => {
+    if(editingId || catTouched) return;
+    const r = matchRule($("fTitle").value, formType); const hint = $("ruleHint");
+    if(r){ selectedCat = r.category; renderChips(); hint.textContent = `🪄 ${r.category} (your rule “${r.match}”)`; } else hint.textContent = "";
+  }, 200);
+});
+function ruleCatOptions(){
+  const list = $("ruleType").value === "income" ? INCOME_CATEGORIES : CATEGORIES;
+  $("ruleCat").innerHTML = list.map(c => `<option value="${esc(c.name)}">${esc(c.icon)} ${esc(c.name)}</option>`).join("");
+}
+const ruleMatches = r => allRecords.filter(e => (isIncome(e) ? "income" : "expense") === (r.type || "expense") && (" " + normText(e.title) + " ").includes(" " + normText(r.match)));
+function renderRules(){
+  $("rulesCount").textContent = `${userRules.length}/50`;
+  $("rulesList").innerHTML = userRules.length ? userRules.map((r, i) => { const c = catMap[r.category] || catMap.Other, m = ruleMatches(r), off = m.filter(e => e.category !== r.category).length;
+    return `<div class="rule"><div class="rm">Contains <code>${esc(r.match)}</code> → <b style="color:${c.color}">${esc(c.icon)} ${esc(r.category)}</b>${r.type === "income" ? " <span class='rn'>(income)</span>" : ""}
+      <div class="rn">${m.length} transaction${m.length === 1 ? "" : "s"} match${off ? ` · ${off} filed differently` : ""}</div></div>
+      <button type="button" data-rdel="${i}" title="Delete rule">🗑️</button></div>`; }).join("")
+    : `<div class="empty" style="padding:14px 0">No rules yet. Example: “uber eats” → Food, “payroll” → Salary.</div>`;
+  const changes = pendingRuleChanges();
+  $("rulesApply").textContent = changes.length ? `Apply rules to ${changes.length} existing transaction${changes.length === 1 ? "" : "s"}` : "Existing transactions already match";
+  $("rulesApply").disabled = !changes.length;
+}
+// Existing transactions whose category differs from what the first matching rule says
+function pendingRuleChanges(){
+  return allRecords.map(e => { const r = matchRule(e.title, isIncome(e) ? "income" : "expense"); return r && r.category !== e.category ? [e, r.category] : null; }).filter(Boolean);
+}
+const saveRules = list => rulesRef.set({ rules:list, updatedAt:TS() }).catch(err => toast("Error: " + err.message));
+function addRule(match, category, type){
+  match = match.trim().replace(/\s+/g, " ").slice(0, 40);
+  if(match.length < 2) return toast("Use at least 2 characters"), false;
+  if(userRules.length >= 50) return toast("You can have up to 50 rules"), false;
+  const rest = userRules.filter(r => !(r.match.toLowerCase() === match.toLowerCase() && (r.type || "expense") === type));
+  saveRules([{ match, category, type }, ...rest]); return true;
+}
+function openRules(){ ruleCatOptions(); $("ruleMatch").value = ""; renderRules(); $("rulesModal").hidden = false; setTimeout(() => $("ruleMatch").focus(), 50); }
+const closeRules = () => { $("rulesModal").hidden = true; };
+$("rulesBtn").addEventListener("click", openRules);
+$("rulesClose").addEventListener("click", closeRules);
+$("rulesDone").addEventListener("click", closeRules);
+$("ruleType").addEventListener("change", ruleCatOptions);
+$("rulesModal").addEventListener("click", e => {
+  if(e.target.id === "rulesModal") return closeRules();
+  const d = e.target.closest("[data-rdel]"); if(!d) return;
+  saveRules(userRules.filter((_, i) => i !== +d.dataset.rdel)); toast("🗑️ Rule deleted");
+});
+$("ruleForm").addEventListener("submit", e => {
+  e.preventDefault();
+  if(addRule($("ruleMatch").value, $("ruleCat").value, $("ruleType").value)){ toast("🪄 Rule added"); $("ruleMatch").value = ""; }
+});
+$("rulesApply").addEventListener("click", () => {
+  const ch = pendingRuleChanges(); if(!ch.length) return;
+  if(!confirm(`Change the category of ${ch.length} transaction${ch.length === 1 ? "" : "s"} to match your rules?`)) return;
+  for(let i = 0; i < ch.length; i += 400){ const b = db.batch(); ch.slice(i, i + 400).forEach(([e, cat]) => b.update(expensesRef.doc(e.id), { category:cat, updatedAt:TS() })); b.commit().catch(err => toast("Error: " + err.message)); }
+  toast(`🪄 Updated ${ch.length} transaction${ch.length === 1 ? "" : "s"}`);
+});
+
+// Toast with an action button (e.g. "Always file … as Food?")
+function actionToast(msg, label, fn){
+  const t = $("toast"); t.innerHTML = ""; t.append(msg);
+  const b = document.createElement("button"); b.className = "t-act"; b.textContent = label;
+  b.onclick = () => { fn(); t.classList.remove("show"); }; t.append(b);
+  t.classList.add("show"); clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove("show"), 7000);
+}
+// The shared start of several titles, cut at a word boundary ("UBER EATS 1234" + "UBER EATS 9" → "uber eats")
+function commonPrefix(titles){
+  const words = titles.map(t => normText(t).split(" ").filter(Boolean));
+  if(!words.length || !words[0].length) return "";
+  if(words.length === 1){
+    // One title: keep the leading words before any store number like "#1234" or "5744"
+    const raw = String(titles[0]).split(/[#*]|\d/)[0];
+    return normText(raw).split(" ").filter(Boolean).slice(0, 2).join(" ");
+  }
+  // Several titles: the longest run of whole words they all start with
+  const out = [];
+  for(let i = 0; i < words[0].length; i++){ const w = words[0][i]; if(words.every(x => x[i] === w) && !/^\d+$/.test(w)) out.push(w); else break; }
+  return out.join(" ");
+}
+
+/* ---------------- Bulk select ---------------- */
+let selecting = false; const picked = new Set();
+function enterSelect(){ selecting = true; picked.clear(); document.body.classList.add("selecting"); $("selectBtn").classList.add("on"); $("bulkBar").hidden = false; renderList(); updateBulk(); }
+function exitSelect(){ selecting = false; picked.clear(); document.body.classList.remove("selecting"); if($("selectBtn")) $("selectBtn").classList.remove("on"); if($("bulkBar")) $("bulkBar").hidden = true; if(expensesRef) renderList(); }
+function updateBulk(){
+  const sel = allRecords.filter(e => picked.has(e.id)), shown = allRecords.filter(matchesFilter);
+  $("bulkCount").textContent = `${sel.length} selected`;
+  $("bulkAll").checked = shown.length > 0 && shown.every(e => picked.has(e.id));
+  const types = new Set(sel.map(e => isIncome(e) ? "income" : "expense"));
+  const list = types.size === 1 ? (types.has("income") ? INCOME_CATEGORIES : CATEGORIES) : [];
+  $("bulkCat").innerHTML = `<option value="">${types.size > 1 ? "Mixed expense & income" : "Change category…"}</option>` + list.map(c => `<option value="${esc(c.name)}">${esc(c.icon)} ${esc(c.name)}</option>`).join("");
+  ["bulkCat","bulkTag","bulkTagBtn","bulkDel"].forEach(id => $(id).disabled = !sel.length);
+  if(types.size > 1) $("bulkCat").disabled = true;
+}
+$("selectBtn").addEventListener("click", () => selecting ? exitSelect() : enterSelect());
+$("bulkDone").addEventListener("click", exitSelect);
+$("bulkAll").addEventListener("change", e => { allRecords.filter(matchesFilter).forEach(x => e.target.checked ? picked.add(x.id) : picked.delete(x.id)); renderList(); updateBulk(); });
+$("list").addEventListener("change", e => {
+  const c = e.target.closest(".pick"); if(!c) return;
+  c.checked ? picked.add(c.dataset.pick) : picked.delete(c.dataset.pick);
+  c.closest(".item").classList.toggle("picked", c.checked); updateBulk();
+});
+$("bulkCat").addEventListener("change", () => {
+  const cat = $("bulkCat").value; if(!cat) return;
+  const sel = allRecords.filter(e => picked.has(e.id) && e.category !== cat);
+  for(let i = 0; i < sel.length; i += 400){ const b = db.batch(); sel.slice(i, i + 400).forEach(e => b.update(expensesRef.doc(e.id), { category:cat, updatedAt:TS() })); b.commit().catch(err => toast("Error: " + err.message)); }
+  const all = allRecords.filter(e => picked.has(e.id)), type = isIncome(all[0]) ? "income" : "expense";
+  const pref = commonPrefix(all.map(e => e.title || ""));
+  exitSelect();
+  if(pref.length >= 3 && !userRules.some(r => r.match.toLowerCase() === pref && r.category === cat))
+    actionToast(`✅ Moved ${all.length} to ${cat}. `, `🪄 Always file “${pref}” as ${cat}`, () => { if(addRule(pref, cat, type)) toast(`🪄 Rule added: “${pref}” → ${cat}`); });
+  else toast(`✅ Moved ${all.length} to ${cat}`);
+});
+$("bulkTagBtn").addEventListener("click", () => {
+  const t = (parseTags("#" + $("bulkTag").value.replace(/^#/, ""))[0]); if(!t) return toast("Type a tag (letters, numbers, - or _)");
+  const sel = allRecords.filter(e => picked.has(e.id)), ok = sel.filter(e => (e.tags || []).includes(t) || (e.tags || []).length < 10);
+  for(let i = 0; i < ok.length; i += 400){ const b = db.batch(); ok.slice(i, i + 400).forEach(e => b.update(expensesRef.doc(e.id), { tags:firebase.firestore.FieldValue.arrayUnion(t), updatedAt:TS() })); b.commit().catch(err => toast("Error: " + err.message)); }
+  $("bulkTag").value = ""; toast(`🏷️ Tagged ${ok.length} with #${t}${ok.length < sel.length ? ` (${sel.length - ok.length} already have 10 tags)` : ""}`);
+});
+$("bulkDel").addEventListener("click", () => {
+  const ids = [...picked]; if(!ids.length) return;
+  if(!confirm(`Delete ${ids.length} transaction${ids.length === 1 ? "" : "s"}? This can't be undone.`)) return;
+  for(let i = 0; i < ids.length; i += 400){ const b = db.batch(); ids.slice(i, i + 400).forEach(id => b.delete(expensesRef.doc(id))); b.commit().catch(err => toast("Error: " + err.message)); }
+  toast(`🗑️ Deleted ${ids.length} transaction${ids.length === 1 ? "" : "s"}`); exitSelect();
+});
+document.addEventListener("keydown", e => { if(e.key === "Escape" && selecting && $("rulesModal").hidden) exitSelect(); });
+
 /* ---------------- Backup & restore ---------------- */
 const BACKUP_KEY = "spendly-last-backup";
 // Firestore values → plain JSON (timestamps become ISO strings)
@@ -1663,7 +1864,7 @@ function resetForm(){
   $("expForm").reset(); $("fDate").value = toKey(new Date());
   $("formTitle").textContent = formType === "income" ? "➕ Add Income" : "➕ Add Expense";
   $("submitBtn").textContent = formType === "income" ? "Add Income" : "Add Expense";
-  $("cancelEdit").hidden = true; $("repeatRow").hidden = false;
+  $("cancelEdit").hidden = true; $("repeatRow").hidden = false; catTouched = false; $("ruleHint").textContent = "";
 }
 $("cancelEdit").addEventListener("click", resetForm);
 
@@ -2057,16 +2258,18 @@ function renderList(){
   if(!rows.length){ $("list").innerHTML = `<div class="empty">${allRecords.length?"Nothing matches this search":"No expenses yet — add your first one! 🎉"}</div>`; return; }
   $("list").innerHTML = rows.map(e => {
     const c = catMap[e.category] || catMap.Other;
-    return `<div class="item ${isIncome(e) ? "inc" : ""}" style="border-left-color:${c.color}">
+    return `<div class="item ${isIncome(e) ? "inc" : ""} ${selecting && picked.has(e.id) ? "picked" : ""}" style="border-left-color:${c.color}">
+      ${selecting ? `<input type="checkbox" class="pick" data-pick="${e.id}" ${picked.has(e.id) ? "checked" : ""} aria-label="Select ${esc(e.title)}">` : ""}
       <div class="ic" style="background:${c.color}22">${c.icon}</div>
       <div class="info"><div class="title">${esc(e.title)}</div>
         <div class="meta">${esc(e.category)} · ${e._date.toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"})} · ${esc(e.payment||"")}${e.recurringId ? " · 🔁" : ""}</div>
         ${e.note ? `<div class="note" title="${esc(e.note)}">${esc(e.note.replace(/#[\p{L}\p{N}_-]+/gu, "").replace(/\s+/g, " ").trim())}</div>` : ""}
         ${(e.tags||[]).length ? `<div class="tags">${e.tags.map(t => `<button class="tag" data-tag="${esc(t)}" title="Show #${esc(t)}">#${esc(t)}</button>`).join("")}</div>` : ""}</div>
       <div class="amt" style="color:${c.color}">${isIncome(e) ? "+" : ""}${fmt(e.amount)}</div>
-      <div class="ops"><button data-act="edit" data-id="${e.id}" title="Edit">✏️</button><button data-act="del" data-id="${e.id}" title="Delete">🗑️</button></div>
+      ${selecting ? "" : `<div class="ops"><button data-act="edit" data-id="${e.id}" title="Edit">✏️</button><button data-act="del" data-id="${e.id}" title="Delete">🗑️</button></div>`}
     </div>`;
   }).join("");
+  if(selecting) updateBulk();
 }
 $("search").addEventListener("input", renderList);
 $("listSummary").addEventListener("click", e => {
@@ -2415,7 +2618,8 @@ const HELP = {
     "‹ › change the month"]],
   transactions: ["Transactions", "All your expenses and income, newest first.", [
     "Search text or <i>#tag</i>, and filter by category or date range",
-    "✏️ edits, 🗑️ deletes",
+    "✏️ edits, 🗑️ deletes; <i>☑ Select</i> edits many at once",
+    "<i>🪄 Rules</i> file transactions into categories automatically",
     "<i>Import</i> a bank or card statement (CSV/Excel)",
     "<i>Export</i> to Excel, CSV, a PDF report or a full <i>.json</i> backup"]],
   import: ["Importing a statement", "Download a CSV or Excel statement from your bank or card's website, then:", [
@@ -2424,6 +2628,10 @@ const HELP = {
     "Unticked rows (duplicates, card payments) are skipped — tick to include",
     "Re-importing the same file never creates duplicates; <i>Undo</i> removes the whole import",
     "Choose a Spendly <i>.json</i> backup here to restore it"]],
+  rules: ["Smart rules", "Teach Spendly how to file things. When a description contains your text, it picks that category — while you type a new expense and when you import a statement.", [
+    "Rules are checked top to bottom; newest first",
+    "<i>Apply rules to existing transactions</i> re-files past entries",
+    "Tip: after changing many items' category with ☑ Select, Spendly offers to make a rule"]],
   categories: ["Your categories", "Add categories the defaults don't cover, like Pets or Kids. They appear everywhere — the form, filters, charts, budgets and exports. Removing one keeps old expenses (they show as Other)."]
 };
 let helpOpen = null, helpPinned = false, helpTimer;
