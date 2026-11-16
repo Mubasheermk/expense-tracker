@@ -4,10 +4,10 @@
  * - Firebase data / auth / App Check traffic is never touched: Firestore keeps its own offline copy.
  * Bump CACHE when you change this file.
  */
-const CACHE = "spendly-v3";
+const CACHE = "spendly-v4";
 const SHELL = ["./", "./index.html", "./manifest.webmanifest", "./icons/icon-192.png", "./icons/icon-512.png",
   "./css/styles.css",
-  "./js/backup.js", "./js/bills.js", "./js/categories.js", "./js/core.js", "./js/export.js", "./js/form.js", "./js/goals.js", "./js/import.js", "./js/main.js", "./js/recurring.js", "./js/render.js", "./js/rules.js", "./js/tips.js", "./js/ui.js"
+  "./js/backup.js", "./js/bills.js", "./js/categories.js", "./js/core.js", "./js/export.js", "./js/form.js", "./js/goals.js", "./js/import.js", "./js/main.js", "./js/recurring.js", "./js/render.js", "./js/review.js", "./js/rules.js", "./js/tips.js", "./js/ui.js"
 ];
 const CACHE_FIRST_HOSTS = ["cdnjs.cloudflare.com", "fonts.googleapis.com", "fonts.gstatic.com"];
 

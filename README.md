@@ -24,6 +24,7 @@ js/                   App code as classic scripts that share one global scope.
   form.js             Add / edit / delete transactions
   render.js           Money flow, calendar, cash flow, insights, stats, charts, list
   export.js           Excel / CSV / PDF export
+  review.js           Year in review and its shareable image
   main.js             Period controls, help tips, dark mode, PWA setup (loaded last)
 sw.js                 Service worker (offline cache, reminder clicks). Bump CACHE when changing files
 manifest.webmanifest  Install metadata; icons/ holds the app icons
