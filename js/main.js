@@ -56,7 +56,7 @@ const HELP = {
     "<i>＋ Add money</i> whenever you set some aside (tracked separately from expenses)",
     "With a target date it shows the monthly amount needed and whether you're on track",
     "<i>✏️ Edit</i> to change the target, date or name, or delete the goal"]],
-  insights: ["Insights", "Automatic observations comparing this month so far with the same days last month — trend, projected month-end spending, biggest changes, top category and largest expense. Uses spending only."],
+  insights: ["Insights", "Automatic observations comparing this month so far with the same days last month — trend, projected month-end spending, biggest changes, top category and largest expense. Uses spending only. <i>🎉 Year in review</i> summarizes a whole year."],
   charts: ["Spending charts", "Your spending over time, with income in green when there is any.", [
     "<i>Day / Week / Month / Year</i> switch the view; ‹ › move between periods",
     "The doughnut shows spending by category for the period shown"]],
@@ -80,6 +80,10 @@ const HELP = {
     "Rules are checked top to bottom; newest first",
     "<i>Apply rules to existing transactions</i> re-files past entries",
     "Tip: after changing many items' category with ☑ Select, Spendly offers to make a rule"]],
+  review: ["Year in review", "A summary of any year in Spendly: totals, month-by-month spending, top categories and highlights like your most visited place and longest no-spend streak.", [
+    "Pick another year with the menu",
+    "<i>Download image</i> saves a shareable summary card; <i>Share</i> opens your phone's share sheet",
+    "The image includes your amounts — share it only where you're comfortable"]],
   categories: ["Your categories", "Add categories the defaults don't cover, like Pets or Kids. They appear everywhere — the form, filters, charts, budgets and exports. Removing one keeps old expenses (they show as Other)."]
 };
 let helpOpen = null, helpPinned = false, helpTimer;

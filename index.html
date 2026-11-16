@@ -199,6 +199,7 @@
   <div class="card" id="insightsCard" style="margin-bottom:20px">
     <div class="card-head">
       <h2 data-help="insights">💡 Insights <span class="sub-h" id="insightsSub"></span></h2>
+      <button type="button" class="mini-btn" id="reviewBtn">🎉 Year in review</button>
     </div>
     <div class="insights" id="insights"><div class="empty">Loading…</div></div>
   </div>
@@ -307,6 +308,24 @@
   <span class="bulk-tag"><input id="bulkTag" maxlength="25" placeholder="#tag" /><button type="button" class="mini-btn" id="bulkTagBtn">＋ Tag</button></span>
   <button type="button" class="mini-btn danger" id="bulkDel">🗑️ Delete</button>
   <button type="button" class="mini-btn" id="bulkDone">✕ Done</button>
+</div>
+
+<!-- Year in review -->
+<div class="modal" id="reviewModal" hidden>
+  <div class="modal-card wide" style="max-width:760px">
+    <div class="card-head">
+      <h2 data-help="review"><span id="revTitle">🎉 Year in review</span> <span class="sub-h" id="revRange"></span></h2>
+      <div style="display:flex;gap:8px;align-items:center">
+        <select id="revYear" style="width:auto;padding:7px 10px;font-size:.82rem" aria-label="Year"></select>
+        <button type="button" class="x-btn" id="revClose" aria-label="Close">✕</button>
+      </div>
+    </div>
+    <div id="revBody"></div>
+    <div class="actions" style="margin-top:16px;justify-content:flex-end;flex-wrap:wrap">
+      <button class="btn btn-ghost" type="button" id="revDownload">🖼️ Download image</button>
+      <button class="btn btn-primary" type="button" id="revShare" style="width:auto">📤 Share</button>
+    </div>
+  </div>
 </div>
 
 <!-- Reminders -->
@@ -531,6 +550,7 @@
 <script src="js/form.js"></script>
 <script src="js/render.js"></script>
 <script src="js/export.js"></script>
+<script src="js/review.js"></script>
 <script src="js/main.js"></script>
 </body>
 </html>

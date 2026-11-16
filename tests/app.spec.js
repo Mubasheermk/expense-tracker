@@ -19,6 +19,13 @@ async function openApp(page){
   const errors = [];
   page.on("pageerror", e => errors.push(e.message));
   await page.addInitScript(MOCK);
+  // Record every toast message, since a later toast can replace an earlier one on screen
+  await page.addInitScript(() => document.addEventListener("DOMContentLoaded", () => {
+    window.__toasts = [];
+    const t = document.getElementById("toast");
+    new MutationObserver(() => { const x = t.textContent.trim(); if(x && window.__toasts[window.__toasts.length - 1] !== x) window.__toasts.push(x); })
+      .observe(t, { childList:true, characterData:true, subtree:true });
+  }));
   await page.route(/gstatic\.com|fonts\.googleapis\.com|fonts\.gstatic\.com/, r => r.fulfill({ body:"", contentType:"text/javascript" }));
   if(LOCAL_CDN){
     const map = { "chart.umd": "chart.js/dist/chart.umd.js", "xlsx.full": "xlsx/dist/xlsx.full.min.js", "autotable": "jspdf-autotable/dist/jspdf.plugin.autotable.min.js", "jspdf.umd": "jspdf/dist/jspdf.umd.min.js" };
@@ -31,6 +38,8 @@ async function openApp(page){
 }
 // Fail the test if the page threw any JavaScript error
 const noErrors = errors => expect(errors, "JavaScript errors on the page").toEqual([]);
+// Wait until some toast message (past or present) contains the text
+const sawToast = (page, text) => expect.poll(() => page.evaluate(() => window.__toasts.join("\n")), { timeout:8000 }).toContain(text);
 
 test.describe("Spendly", () => {
 
@@ -96,7 +105,7 @@ test.describe("Spendly", () => {
     await page.fill("#fTitle", "Pharmacy");
     await page.fill("#fAmount", "45");
     await page.click("#submitBtn");
-    await expect(page.locator("#toast")).toContainText("Health is at 90% of budget", { timeout:5000 });
+    await sawToast(page, "Health is at 90% of budget");
     noErrors(errors);
   });
 
@@ -212,8 +221,8 @@ test.describe("Spendly", () => {
     await page.check('.pick[data-pick="u2x"]');
     await expect(page.locator("#bulkCount")).toHaveText("2 selected");
     await page.selectOption("#bulkCat", "Food");
-    await expect(page.locator("#toast .t-act")).toContainText("uber eats");
-    await page.click("#toast .t-act");
+    await sawToast(page, "Always file “uber eats” as Food");
+    await page.evaluate(() => document.querySelector("#toast .t-act").click());
     expect((await store(page))["users/u1/settings/rules"].rules[0]).toMatchObject({ match:"uber eats", category:"Food" });
     await page.fill("#fTitle", "Uber Eats - pizza");
     await expect(page.locator("#ruleHint")).toContainText("Food");
@@ -277,12 +286,29 @@ test.describe("Spendly", () => {
     noErrors(errors);
   });
 
+  test("year in review summarizes the year and makes a share image @phone", async ({ page }) => {
+    const errors = await openApp(page);
+    await page.click("#reviewBtn");
+    await expect(page.locator("#reviewModal")).toBeVisible();
+    await expect(page.locator("#revTitle")).toContainText(String(new Date().getFullYear()));
+    await expect(page.locator(".rv-tile").first()).toContainText("Spent");
+    await expect(page.locator(".rv-cat").first()).toBeVisible();
+    await expect(page.locator(".rv-hl li")).not.toHaveCount(0);
+    const [dl] = await Promise.all([page.waitForEvent("download"), page.click("#revDownload")]);
+    expect(dl.suggestedFilename()).toBe(`spendly-${new Date().getFullYear()}-review.png`);
+    const png = fs.readFileSync(await dl.path());
+    expect(png.subarray(1, 4).toString()).toBe("PNG");
+    expect(png.length).toBeGreaterThan(20000);
+    noErrors(errors);
+  });
+
   test("dark mode toggles and is remembered", async ({ page }) => {
     const errors = await openApp(page);
     const theme = () => page.evaluate(() => document.documentElement.dataset.theme);
     const start = await theme();
     await page.click("#themeBtn");
     expect(await theme()).not.toBe(start);
+    expect(await page.evaluate(() => localStorage.getItem("spendly-theme"))).toBe(await theme());
     await page.reload();
     await expect(page.locator("#dbStatus")).toContainText("Synced");
     expect(await theme()).not.toBe(start);
