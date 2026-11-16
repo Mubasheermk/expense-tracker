@@ -1,0 +1,11 @@
+{
+  "name": "spendly",
+  "private": true,
+  "description": "Spendly expense tracker: static app served by GitHub Pages; package.json only holds the test tools",
+  "scripts": {
+    "test": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.63.0"
+  }
+}
